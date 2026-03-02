@@ -3,14 +3,15 @@ import time
 import boto3
 from botocore.exceptions import ClientError
 
-REGION = os.environ["AWS_REGION"]
+# REGION = os.environ["AWS_REGION"]
 MODEL_GROUP = os.environ["MODEL_PACKAGE_GROUP"]
 PROD_ENDPOINT = os.environ["PROD_ENDPOINT_NAME"]
 SAGEMAKER_EXEC_ROLE_ARN = os.environ["SAGEMAKER_EXEC_ROLE_ARN"]
 INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "ml.m5.large")
 INITIAL_INSTANCE_COUNT = int(os.environ.get("INITIAL_INSTANCE_COUNT", "1"))
-
-sm = boto3.client("sagemaker", region_name=REGION)
+REGION = os.environ.get("REGION")  # optional
+sm = boto3.client("sagemaker", region_name=REGION) if REGION else boto3.client("sagemaker")
+# sm = boto3.client("sagemaker", region_name=REGION)
 
 def endpoint_exists(name: str) -> bool:
     try:

@@ -73,7 +73,7 @@ resource "aws_lambda_function" "auto_deploy_prod" {
 
   environment {
     variables = {
-      AWS_REGION              = var.aws_region
+      REGION              = var.aws_region
       MODEL_PACKAGE_GROUP     = var.model_package_group_name
       PROD_ENDPOINT_NAME      = var.prod_endpoint_name
       SAGEMAKER_EXEC_ROLE_ARN = var.sagemaker_execution_role_arn
