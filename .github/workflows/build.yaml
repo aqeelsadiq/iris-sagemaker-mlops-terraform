@@ -35,6 +35,7 @@ jobs:
         with:
           terraform_version: "1.12.2"
 
+          
       - name: Terraform Init
         working-directory: terraform
         run: terraform init
