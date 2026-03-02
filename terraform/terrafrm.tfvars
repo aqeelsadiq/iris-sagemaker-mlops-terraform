@@ -17,3 +17,5 @@ github_repo = "aqeelsadiq/iris-sagemaker-mlops-terraform"
 github_allowed_refs = [
   "refs/heads/main"
 ]
+
+prod_endpoint_name = "iris-endpoint-prod"

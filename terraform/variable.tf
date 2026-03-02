@@ -25,3 +25,8 @@ variable "github_allowed_refs" {
   type    = list(string)
   default = ["refs/heads/main"]
 }
+
+variable "prod_endpoint_name" {
+  type    = string
+  default = "iris-endpoint-prod"
+}
