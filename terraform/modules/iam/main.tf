@@ -24,15 +24,15 @@ resource "aws_iam_policy" "sagemaker_exec_policy" {
     Version = "2012-10-17"
     Statement = [
 
+      # S3: bucket + objects (your project bucket)
       {
+        Sid    = "S3ListBucket"
         Effect = "Allow"
-        Action = [
-          "s3:ListBucket"
-        ]
+        Action = ["s3:ListBucket"]
         Resource = var.bucket_arn
       },
-
       {
+        Sid    = "S3ObjectAccess"
         Effect = "Allow"
         Action = [
           "s3:GetObject",
@@ -42,19 +42,64 @@ resource "aws_iam_policy" "sagemaker_exec_policy" {
         Resource = "${var.bucket_arn}/*"
       },
 
+      # SageMaker
       {
+        Sid    = "SageMakerAll"
+        Effect = "Allow"
+        Action = ["sagemaker:*"]
+        Resource = "*"
+      },
+
+      # CloudWatch Logs (enough for endpoint + processing/training logs)
+      {
+        Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
-          "logs:*",
-          "sagemaker:*"
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
         ]
         Resource = "*"
       },
 
+      # ECR pull (needed when SageMaker endpoint pulls the inference image)
       {
+        Sid    = "ECRPull"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "*"
+      },
+
+      # KMS (only needed if your bucket/model artifacts use SSE-KMS; safe to include)
+      {
+        Sid    = "KMSForEncryptedArtifacts"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+
+      # PassRole restricted to SageMaker only (recommended)
+      {
+        Sid    = "PassRoleToSageMakerOnly"
         Effect = "Allow"
         Action = ["iam:PassRole"]
-        Resource = "*"
+        Resource = "arn:aws:iam::*:role/${var.project_name}-*"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "sagemaker.amazonaws.com"
+          }
+        }
       }
     ]
   })
