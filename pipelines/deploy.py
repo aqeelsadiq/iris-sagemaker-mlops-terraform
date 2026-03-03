@@ -129,7 +129,7 @@ def main():
         instance_type=args.instance_type,
     )
 
-    print("✅ Deployed endpoint:", args.endpoint_name)
+    print("Deployed endpoint:", args.endpoint_name)
 
 
 if __name__ == "__main__":

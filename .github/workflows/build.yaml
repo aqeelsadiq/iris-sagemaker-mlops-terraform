@@ -1,4 +1,4 @@
-name: Terraform + Build/Train/Evaluate/Register + Deploy STAGING
+name: Terraform Infra + Build/Train/Evaluate/Register + Deploy STAGING
 
 on:
   push:

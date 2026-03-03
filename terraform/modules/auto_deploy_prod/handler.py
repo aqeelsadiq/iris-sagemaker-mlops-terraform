@@ -9,7 +9,7 @@ PROD_ENDPOINT = os.environ["PROD_ENDPOINT_NAME"]
 SAGEMAKER_EXEC_ROLE_ARN = os.environ["SAGEMAKER_EXEC_ROLE_ARN"]
 INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "ml.m5.large")
 INITIAL_INSTANCE_COUNT = int(os.environ.get("INITIAL_INSTANCE_COUNT", "1"))
-REGION = os.environ.get("REGION")  # optional
+REGION = os.environ.get("REGION") 
 sm = boto3.client("sagemaker", region_name=REGION) if REGION else boto3.client("sagemaker")
 # sm = boto3.client("sagemaker", region_name=REGION)
 
