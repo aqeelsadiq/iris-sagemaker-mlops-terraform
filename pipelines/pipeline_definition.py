@@ -156,11 +156,9 @@ def main():
 
     condition = ConditionGreaterThanOrEqualTo(left=acc_value, right=acc_threshold_param)
 
-    # FIX: pipeline-safe construction of "s3://.../evaluation.json"
     evaluation_output_s3_uri = step_eval.properties.ProcessingOutputConfig.Outputs["evaluation"].S3Output.S3Uri
     evaluation_json_s3_uri = Join(on="/", values=[evaluation_output_s3_uri, "evaluation.json"])
 
-    # Attach metrics to Model Registry so "Evaluate" isn't Undefined
     model_metrics = ModelMetrics(
         model_statistics=MetricsSource(
             s3_uri=evaluation_json_s3_uri,

@@ -1,130 +1,130 @@
-name: Terraform Infra + Build/Train/Evaluate/Register + Deploy STAGING
+# name: Terraform Infra + Build/Train/Evaluate/Register + Deploy STAGING
 
-on:
-  push:
-    branches: ["main"]
+# on:
+#   push:
+#     branches: ["main"]
 
-permissions:
-  contents: read
+# permissions:
+#   contents: read
 
-jobs:
-  pipeline:
-    runs-on: ubuntu-latest
+# jobs:
+#   pipeline:
+#     runs-on: ubuntu-latest
 
-    env:
-      AWS_REGION: us-east-1
-      PIPELINE_NAME: iris-pipeline
-      S3_DATA_KEY: datasets/iris/iris-data.csv
-      STAGING_ENDPOINT_NAME: iris-endpoint-staging
+#     env:
+#       AWS_REGION: us-east-1
+#       PIPELINE_NAME: iris-pipeline
+#       S3_DATA_KEY: datasets/iris/iris-data.csv
+#       STAGING_ENDPOINT_NAME: iris-endpoint-staging
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
 
-      # 1) AWS Auth via Access Keys
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+#       # 1) AWS Auth via Access Keys
+#       - name: Configure AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
 
-      # 2) Terraform (apply infra)
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.12.2"
+#       # 2) Terraform (apply infra)
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: "1.12.2"
 
           
-      - name: Terraform Init
-        working-directory: terraform
-        run: terraform init
+#       - name: Terraform Init
+#         working-directory: terraform
+#         run: terraform init
 
-      - name: Terraform Apply
-        working-directory: terraform
-        run: terraform apply -auto-approve -var-file=terrafrm.tfvars
+#       - name: Terraform Apply
+#         working-directory: terraform
+#         run: terraform apply -auto-approve -var-file=terrafrm.tfvars
 
-      # 3) Export TF outputs for later steps
-      - name: Export Terraform outputs
-        working-directory: terraform
-        run: |
-          echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
-          echo "SAGEMAKER_EXEC_ROLE_ARN=$(terraform output -raw sagemaker_execution_role_arn)" >> $GITHUB_ENV
-          echo "MODEL_GROUP=$(terraform output -raw model_package_group_name)" >> $GITHUB_ENV
+#       # 3) Export TF outputs for later steps
+#       - name: Export Terraform outputs
+#         working-directory: terraform
+#         run: |
+#           echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
+#           echo "SAGEMAKER_EXEC_ROLE_ARN=$(terraform output -raw sagemaker_execution_role_arn)" >> $GITHUB_ENV
+#           echo "MODEL_GROUP=$(terraform output -raw model_package_group_name)" >> $GITHUB_ENV
 
-      # 4) Upload dataset to S3 (uses TF bucket output)
-      - name: Upload dataset to S3
-        run: |
-          aws s3 cp "data/iris-data.csv" "s3://${S3_BUCKET}/${S3_DATA_KEY}"
+#       # 4) Upload dataset to S3 (uses TF bucket output)
+#       - name: Upload dataset to S3
+#         run: |
+#           aws s3 cp "data/iris-data.csv" "s3://${S3_BUCKET}/${S3_DATA_KEY}"
 
-      # 5) Setup Python
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+#       # 5) Setup Python
+#       - name: Setup Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip uninstall -y sagemaker sagemaker-core sagemaker-mlops sagemaker-serve sagemaker-train sagemaker-mlflow || true
-          pip install -r src/requirements.txt
-          pip install "sagemaker>=2.218.0,<3" "boto3>=1.28.0" "botocore>=1.31.0"
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip uninstall -y sagemaker sagemaker-core sagemaker-mlops sagemaker-serve sagemaker-train sagemaker-mlflow || true
+#           pip install -r src/requirements.txt
+#           pip install "sagemaker>=2.218.0,<3" "boto3>=1.28.0" "botocore>=1.31.0"
 
-      # 6) Upsert pipeline
-      - name: Create/Update SageMaker Pipeline
-        run: |
-          python pipelines/pipeline_definition.py \
-            --region "${AWS_REGION}" \
-            --role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
-            --pipeline-name "${PIPELINE_NAME}" \
-            --model-package-group-name "${MODEL_GROUP}" \
-            --default-bucket "${S3_BUCKET}" \
-            --train-data-s3-uri "s3://${S3_BUCKET}/${S3_DATA_KEY}" \
-            --accuracy-threshold "0.90" \
-            --processing-instance-type "ml.t3.medium" \
-            --training-instance-type "ml.m5.large" \
-            --evaluation-instance-type "ml.t3.medium"
+#       # 6) Upsert pipeline
+#       - name: Create/Update SageMaker Pipeline
+#         run: |
+#           python pipelines/pipeline_definition.py \
+#             --region "${AWS_REGION}" \
+#             --role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
+#             --pipeline-name "${PIPELINE_NAME}" \
+#             --model-package-group-name "${MODEL_GROUP}" \
+#             --default-bucket "${S3_BUCKET}" \
+#             --train-data-s3-uri "s3://${S3_BUCKET}/${S3_DATA_KEY}" \
+#             --accuracy-threshold "0.90" \
+#             --processing-instance-type "ml.t3.medium" \
+#             --training-instance-type "ml.m5.large" \
+#             --evaluation-instance-type "ml.t3.medium"
 
-      # 7) Start execution
-      - name: Start Pipeline Execution
-        run: |
-          EXEC_ARN=$(aws sagemaker start-pipeline-execution \
-            --pipeline-name "${PIPELINE_NAME}" \
-            --pipeline-parameters \
-              Name=TrainDataS3Uri,Value="s3://${S3_BUCKET}/${S3_DATA_KEY}" \
-              Name=AccuracyThreshold,Value="0.90" \
-            --query PipelineExecutionArn --output text)
-          echo "PIPELINE_EXEC_ARN=$EXEC_ARN" >> $GITHUB_ENV
-          echo "Started execution: $EXEC_ARN"
+#       # 7) Start execution
+#       - name: Start Pipeline Execution
+#         run: |
+#           EXEC_ARN=$(aws sagemaker start-pipeline-execution \
+#             --pipeline-name "${PIPELINE_NAME}" \
+#             --pipeline-parameters \
+#               Name=TrainDataS3Uri,Value="s3://${S3_BUCKET}/${S3_DATA_KEY}" \
+#               Name=AccuracyThreshold,Value="0.90" \
+#             --query PipelineExecutionArn --output text)
+#           echo "PIPELINE_EXEC_ARN=$EXEC_ARN" >> $GITHUB_ENV
+#           echo "Started execution: $EXEC_ARN"
 
-      # 8) Wait pipeline
-      - name: Wait for Pipeline Execution
-        run: |
-          echo "Waiting for execution: $PIPELINE_EXEC_ARN"
-          for i in {1..90}; do
-            STATUS=$(aws sagemaker describe-pipeline-execution \
-              --pipeline-execution-arn "$PIPELINE_EXEC_ARN" \
-              --query PipelineExecutionStatus --output text)
-            echo "Status: $STATUS"
-            if [ "$STATUS" = "Succeeded" ]; then
-              exit 0
-            fi
-            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Stopped" ]; then
-              echo "Pipeline ended with: $STATUS"
-              exit 1
-            fi
-            sleep 60
-          done
-          echo "Timeout waiting for pipeline."
-          exit 1
+#       # 8) Wait pipeline
+#       - name: Wait for Pipeline Execution
+#         run: |
+#           echo "Waiting for execution: $PIPELINE_EXEC_ARN"
+#           for i in {1..90}; do
+#             STATUS=$(aws sagemaker describe-pipeline-execution \
+#               --pipeline-execution-arn "$PIPELINE_EXEC_ARN" \
+#               --query PipelineExecutionStatus --output text)
+#             echo "Status: $STATUS"
+#             if [ "$STATUS" = "Succeeded" ]; then
+#               exit 0
+#             fi
+#             if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Stopped" ]; then
+#               echo "Pipeline ended with: $STATUS"
+#               exit 1
+#             fi
+#             sleep 60
+#           done
+#           echo "Timeout waiting for pipeline."
+#           exit 1
 
-      # 9) Deploy STAGING (latest pending/approved)
-      - name: Deploy STAGING endpoint
-        run: |
-          python pipelines/deploy.py \
-            --region "${AWS_REGION}" \
-            --execution-role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
-            --model-package-group-name "${MODEL_GROUP}" \
-            --endpoint-name "${STAGING_ENDPOINT_NAME}" \
-            --instance-type "ml.m5.large" \
-            --approval-status "Any"
+#       # 9) Deploy STAGING (latest pending/approved)
+#       - name: Deploy STAGING endpoint
+#         run: |
+#           python pipelines/deploy.py \
+#             --region "${AWS_REGION}" \
+#             --execution-role-arn "${SAGEMAKER_EXEC_ROLE_ARN}" \
+#             --model-package-group-name "${MODEL_GROUP}" \
+#             --endpoint-name "${STAGING_ENDPOINT_NAME}" \
+#             --instance-type "ml.m5.large" \
+#             --approval-status "Any"

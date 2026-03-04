@@ -75,7 +75,6 @@ def parse_args():
     p.add_argument("--endpoint-name", required=True)
     p.add_argument("--instance-type", default="ml.m5.large")
 
-    # Approved | PendingManualApproval | Rejected | Any
     p.add_argument("--approval-status", default="Approved")
     return p.parse_args()
 
