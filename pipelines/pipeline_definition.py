@@ -168,8 +168,8 @@ def main():
 
 
     metadata_properties = MetadataProperties(
-        training_job=step_train.properties.TrainingJobName
-    )
+    training_job_name=step_train.properties.TrainingJobName
+)
     # -------------------------
     # 4) Register Model (manual approval)
     # -------------------------
