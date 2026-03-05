@@ -76,13 +76,42 @@
 
 
 #test to check endpoint will update or not
+#!/usr/bin/env python3
+"""
+pipelines/deploy.py
+
+Deploy (create/update) a SageMaker real-time endpoint from the latest
+Model Package in a Model Package Group (Model Registry).
+
+Key fixes vs your original:
+- ✅ When creating the SageMaker Model, we also pass the model package container's
+  Environment variables. Without these, the SageMaker sklearn container often fails
+  /ping with errors like: AttributeError: 'NoneType' object has no attribute 'startswith'
+- ✅ Waits if endpoint is already Updating/SystemUpdating before trying to update again.
+- ✅ Better logging + clear failure handling.
+- ✅ Adds tags to Model + EndpointConfig with ModelPackageArn for traceability.
+
+Usage example:
+python pipelines/deploy.py \
+  --region us-east-1 \
+  --execution-role-arn arn:aws:iam::123456789012:role/YourSageMakerExecRole \
+  --model-package-group-name iris-model-group \
+  --endpoint-name iris-endpoint-staging \
+  --approval-status Any
+"""
+
 import argparse
 import time
+from typing import Any, Dict, Optional
+
 import boto3
 from botocore.exceptions import ClientError
 
 
-def parse_args():
+# ----------------------------
+# Args
+# ----------------------------
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--region", required=True)
     p.add_argument("--execution-role-arn", required=True)
@@ -90,12 +119,21 @@ def parse_args():
     p.add_argument("--endpoint-name", required=True)
     p.add_argument("--instance-type", default="ml.m5.large")
     p.add_argument("--initial-instance-count", type=int, default=1)
-    p.add_argument("--approval-status", default="Any") 
+    p.add_argument(
+        "--approval-status",
+        default="Any",
+        choices=["Any", "Approved", "PendingManualApproval"],
+        help="Filter model packages by approval status.",
+    )
     p.add_argument("--timeout-sec", type=int, default=3600)
+    p.add_argument("--poll-sec", type=int, default=30)
     return p.parse_args()
 
 
-def endpoint_desc(sm, endpoint_name: str):
+# ----------------------------
+# Helpers
+# ----------------------------
+def endpoint_desc(sm, endpoint_name: str) -> Dict[str, Any]:
     return sm.describe_endpoint(EndpointName=endpoint_name)
 
 
@@ -105,42 +143,45 @@ def endpoint_exists(sm, endpoint_name: str) -> bool:
         return True
     except ClientError as e:
         code = e.response["Error"]["Code"]
+        # SageMaker can return different "not found" codes depending on SDK versions
         if code in ("ValidationException", "ResourceNotFoundException", "ResourceNotFound"):
             return False
         raise
 
 
-def wait_endpoint(sm, endpoint_name: str, timeout_sec: int):
+def wait_endpoint(sm, endpoint_name: str, timeout_sec: int, poll_sec: int) -> Dict[str, Any]:
     """
-    Wait for endpoint to become InService. If it fails, raise with FailureReason.
+    Wait for endpoint to become InService. If it becomes Failed/OutOfService, raise.
     """
     start = time.time()
-    last_status = None
+    last_status: Optional[str] = None
+
     while True:
         desc = endpoint_desc(sm, endpoint_name)
         status = desc["EndpointStatus"]
-        reason = desc.get("FailureReason")
         cfg = desc.get("EndpointConfigName")
+        reason = desc.get("FailureReason")
 
         if status != last_status:
-            print(f"EndpointStatus: {status} | EndpointConfig: {cfg}")
+            print(f"[wait] EndpointStatus: {status} | EndpointConfigName: {cfg}")
             if reason:
-                print(f"FailureReason (may be stale): {reason}")
+                print(f"[wait] FailureReason (may be stale unless status=Failed): {reason}")
             last_status = status
 
         if status == "InService":
-            # InService can still show an old FailureReason; print it but don't fail.
             return desc
+
         if status in ("Failed", "OutOfService"):
             raise RuntimeError(f"Endpoint is {status}: {reason}")
 
         if time.time() - start > timeout_sec:
-            raise TimeoutError(f"Timed out waiting for endpoint {endpoint_name} to become InService")
-        time.sleep(30)
+            raise TimeoutError(f"Timed out waiting for endpoint '{endpoint_name}' to become InService")
+
+        time.sleep(poll_sec)
 
 
-def get_latest_model_package(sm, group_name: str, approval_status: str) -> str:
-    list_kwargs = dict(
+def get_latest_model_package_arn(sm, group_name: str, approval_status: str) -> str:
+    list_kwargs: Dict[str, Any] = dict(
         ModelPackageGroupName=group_name,
         SortBy="CreationTime",
         SortOrder="Descending",
@@ -152,48 +193,67 @@ def get_latest_model_package(sm, group_name: str, approval_status: str) -> str:
     resp = sm.list_model_packages(**list_kwargs)
     pkgs = resp.get("ModelPackageSummaryList", [])
     if not pkgs:
-        raise RuntimeError(f"No model packages found in '{group_name}' with status '{approval_status}'.")
+        raise RuntimeError(
+            f"No model packages found in group '{group_name}' with status '{approval_status}'."
+        )
     return pkgs[0]["ModelPackageArn"]
 
 
-def main():
+# ----------------------------
+# Main deploy
+# ----------------------------
+def main() -> None:
     args = parse_args()
     sm = boto3.client("sagemaker", region_name=args.region)
 
-    # If endpoint exists and is Updating, wait first (avoids ValidationException like "Cannot update while updating")
+    # If endpoint exists and is currently in a transition state, wait first
     if endpoint_exists(sm, args.endpoint_name):
         d = endpoint_desc(sm, args.endpoint_name)
         if d["EndpointStatus"] in ("Creating", "Updating", "SystemUpdating"):
-            print(f"Endpoint currently {d['EndpointStatus']}; waiting before deploying...")
-            wait_endpoint(sm, args.endpoint_name, args.timeout_sec)
+            print(f"Endpoint '{args.endpoint_name}' currently {d['EndpointStatus']} -> waiting...")
+            wait_endpoint(sm, args.endpoint_name, args.timeout_sec, args.poll_sec)
 
-    # 1) Latest model package
-    pkg_arn = get_latest_model_package(sm, args.model_package_group_name, args.approval_status)
+    # 1) Fetch latest model package
+    pkg_arn = get_latest_model_package_arn(sm, args.model_package_group_name, args.approval_status)
     mp = sm.describe_model_package(ModelPackageName=pkg_arn)
 
-    container = mp["InferenceSpecification"]["Containers"][0]
+    containers = mp.get("InferenceSpecification", {}).get("Containers", [])
+    if not containers:
+        raise RuntimeError(f"Model package has no inference containers: {pkg_arn}")
+
+    container = containers[0]
     image_uri = container["Image"]
     model_data_url = container["ModelDataUrl"]
+
+    # ✅ CRITICAL: pass Environment through (fixes /ping 500 in sklearn container)
+    container_env = container.get("Environment", {}) or {}
 
     print("Using model package:", pkg_arn)
     print("ApprovalStatus:", mp.get("ModelApprovalStatus"))
     print("Image:", image_uri)
     print("ModelDataUrl:", model_data_url)
+    print("Container Environment keys:", sorted(list(container_env.keys())))
 
     ts = int(time.time())
     model_name = f"{args.endpoint_name}-model-{ts}"
     endpoint_config_name = f"{args.endpoint_name}-cfg-{ts}"
 
-    # 2) Create model
+    # 2) Create SageMaker Model (new name each deploy)
+    print("Creating model:", model_name)
     sm.create_model(
         ModelName=model_name,
         ExecutionRoleArn=args.execution_role_arn,
-        PrimaryContainer={"Image": image_uri, "ModelDataUrl": model_data_url},
+        PrimaryContainer={
+            "Image": image_uri,
+            "ModelDataUrl": model_data_url,
+            "Environment": container_env,  # ✅ FIX
+        },
         Tags=[{"Key": "ModelPackageArn", "Value": pkg_arn}],
     )
     print("Created model:", model_name)
 
-    # 3) Create endpoint config (tag it too)
+    # 3) Create endpoint config (new name each deploy)
+    print("Creating endpoint config:", endpoint_config_name)
     sm.create_endpoint_config(
         EndpointConfigName=endpoint_config_name,
         ProductionVariants=[
@@ -217,11 +277,13 @@ def main():
         print("Endpoint does not exist -> creating:", args.endpoint_name)
         sm.create_endpoint(EndpointName=args.endpoint_name, EndpointConfigName=endpoint_config_name)
 
-    # 5) Wait for the deployment to finish
-    final_desc = wait_endpoint(sm, args.endpoint_name, args.timeout_sec)
+    # 5) Wait for deployment completion
+    final_desc = wait_endpoint(sm, args.endpoint_name, args.timeout_sec, args.poll_sec)
     print("Endpoint is InService:", args.endpoint_name)
+
+    # Sometimes SageMaker keeps an old FailureReason even after InService; print it for visibility.
     if final_desc.get("FailureReason"):
-        print("NOTE: Endpoint still has FailureReason text (may be from a previous failed attempt):")
+        print("NOTE: Endpoint has FailureReason text (may be from a previous failed attempt):")
         print(final_desc["FailureReason"])
 
 
