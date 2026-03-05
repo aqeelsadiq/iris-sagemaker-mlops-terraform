@@ -1,113 +1,123 @@
+
+#working lambda function
+
 import os
+import time
 import json
 import boto3
-import streamlit as st
+from botocore.exceptions import ClientError
 
-# ---------------------------
-# Config
-# ---------------------------
-DEFAULT_REGION = os.getenv("AWS_REGION", "us-east-1")
-DEFAULT_ENDPOINT = os.getenv("ENDPOINT_NAME", "iris-endpoint-staging")
+REGION = os.environ.get("REGION", "us-east-1")
+MODEL_PACKAGE_GROUP = os.environ["MODEL_PACKAGE_GROUP"]
+PROD_ENDPOINT_NAME = os.environ["PROD_ENDPOINT_NAME"]
+SAGEMAKER_EXEC_ROLE_ARN = os.environ["SAGEMAKER_EXEC_ROLE_ARN"]
 
-st.set_page_config(page_title="Iris Predictor (SageMaker)", layout="centered")
-st.title("🌸 Iris Predictor (SageMaker Endpoint)")
+INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "ml.m5.large")
+INITIAL_INSTANCE_COUNT = int(os.environ.get("INITIAL_INSTANCE_COUNT", "1"))
 
-region = st.text_input("AWS Region", value=DEFAULT_REGION)
-endpoint_name = st.text_input("Endpoint Name", value=DEFAULT_ENDPOINT)
+# This must match your training/inference framework
+SKLEARN_VERSION = os.environ.get("SKLEARN_VERSION", "1.2-1")
+PY_VERSION = os.environ.get("PY_VERSION", "py3")
 
-runtime = boto3.client("sagemaker-runtime", region_name=region)
-
-FEATURES = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
-
-st.subheader("Input Features")
-c1, c2 = st.columns(2)
-with c1:
-    sepal_length = st.number_input("sepal_length", value=5.1, step=0.1, format="%.2f")
-    petal_length = st.number_input("petal_length", value=1.4, step=0.1, format="%.2f")
-with c2:
-    sepal_width = st.number_input("sepal_width", value=3.5, step=0.1, format="%.2f")
-    petal_width = st.number_input("petal_width", value=0.2, step=0.1, format="%.2f")
-
-payload = {"instances": [[sepal_length, sepal_width, petal_length, petal_width]]}
-
-st.caption("Payload sent to endpoint (JSON)")
-st.code(json.dumps(payload, indent=2), language="json")
+sm = boto3.client("sagemaker", region_name=REGION)
 
 
-def invoke(endpoint: str, body: dict) -> str:
-    resp = runtime.invoke_endpoint(
-        EndpointName=endpoint,
-        ContentType="application/json",
-        Accept="application/json",
-        Body=json.dumps(body).encode("utf-8"),
+def endpoint_exists(endpoint_name: str) -> bool:
+    try:
+        sm.describe_endpoint(EndpointName=endpoint_name)
+        return True
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("ValidationException", "ResourceNotFound"):
+            return False
+        raise
+
+
+def latest_approved_model_package_arn() -> str:
+    resp = sm.list_model_packages(
+        ModelPackageGroupName=MODEL_PACKAGE_GROUP,
+        ModelApprovalStatus="Approved",
+        SortBy="CreationTime",
+        SortOrder="Descending",
+        MaxResults=1,
     )
-    return resp["Body"].read().decode("utf-8", errors="replace")
+    if not resp.get("ModelPackageSummaryList"):
+        raise RuntimeError(f"No Approved model package found in group: {MODEL_PACKAGE_GROUP}")
+    return resp["ModelPackageSummaryList"][0]["ModelPackageArn"]
 
 
-st.subheader("Prediction")
-
-if st.button("Predict"):
-    try:
-        raw = invoke(endpoint_name, payload)
-
-        st.success("✅ Prediction received")
-        st.caption("Raw response")
-        st.code(raw)
-
-        # Try parse as JSON
-        try:
-            parsed = json.loads(raw)
-            st.caption("Parsed response")
-            st.json(parsed)
-
-            # If your inference.py returns {"species":[...]}
-            if isinstance(parsed, dict) and "species" in parsed:
-                species = parsed["species"][0] if parsed["species"] else None
-                st.markdown(f"### 🌿 Predicted Species: **{species}**")
-
-        except Exception:
-            st.info("Response is not JSON (showing raw output only).")
-
-    except Exception as e:
-        st.error(f"InvokeEndpoint failed: {e}")
+def get_sklearn_image_uri(region: str, version: str, py_version: str) -> str:
+    # Official SageMaker SKLearn inference image format
+    # account ids vary by region; SageMaker provides this via sagemaker SDK,
+    # but we avoid it here by using a safe lookup approach: describe the model package's image if available.
+    #
+    # BEST approach: reuse the inference image from the model package itself if it exists.
+    # If it doesn't, you must hardcode/lookup the correct ECR URI for your region.
+    raise NotImplementedError
 
 
-st.divider()
-st.subheader("Batch Prediction (optional)")
+def handler(event, context):
+    print("EVENT:", json.dumps(event))
 
-st.write("Paste multiple rows, one per line, comma-separated (4 values):")
-batch_text = st.text_area(
-    "Batch inputs",
-    value="5.1,3.5,1.4,0.2\n6.2,2.8,4.8,1.8",
-    height=120,
-)
+    pkg_arn = event.get("detail", {}).get("ModelPackageArn") or latest_approved_model_package_arn()
+    print("Using Approved ModelPackageArn:", pkg_arn)
 
-if st.button("Predict Batch"):
-    try:
-        rows = []
-        for line in batch_text.strip().splitlines():
-            parts = [p.strip() for p in line.split(",")]
-            if len(parts) != 4:
-                st.warning(f"Skipping invalid line (need 4 values): {line}")
-                continue
-            rows.append([float(x) for x in parts])
+    desc = sm.describe_model_package(ModelPackageName=pkg_arn)
 
-        if not rows:
-            st.warning("No valid rows found.")
-        else:
-            batch_payload = {"instances": rows}
-            raw = invoke(endpoint_name, batch_payload)
+    # Get model artifact
+    container = desc["InferenceSpecification"]["Containers"][0]
+    model_data = container["ModelDataUrl"]
+    print("ModelDataUrl:", model_data)
 
-            st.success("✅ Batch prediction received")
-            st.caption("Raw response")
-            st.code(raw)
+    # Prefer image URI from Model Package if present
+    image_uri = container.get("Image")
+    if not image_uri:
+        raise RuntimeError(
+            "Model package does not contain container Image URI. "
+            "Either (1) register the model with inference image, or (2) provide IMAGE_URI env var to Lambda."
+        )
 
-            try:
-                parsed = json.loads(raw)
-                st.caption("Parsed response")
-                st.json(parsed)
-            except Exception:
-                st.info("Response is not JSON (showing raw output only).")
+    # Create model with environment variables to run your script-mode inference
+    # NOTE: For Script Mode, the container needs SAGEMAKER_PROGRAM and SAGEMAKER_SUBMIT_DIRECTORY.
+    # Your inference.py should be available in the model.tar.gz under /opt/ml/model/code/.
+    # If your model artifact does NOT contain code/, this method will still fail.
+    model_name = f"prod-model-{int(time.time())}"
 
-    except Exception as e:
-        st.error(f"InvokeEndpoint failed: {e}")
+    env = {
+        "SAGEMAKER_PROGRAM": "inference.py",
+        "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
+    }
+
+    sm.create_model(
+        ModelName=model_name,
+        ExecutionRoleArn=SAGEMAKER_EXEC_ROLE_ARN,
+        PrimaryContainer={
+            "Image": image_uri,
+            "ModelDataUrl": model_data,
+            "Environment": env,
+        },
+    )
+    print("Created model:", model_name)
+
+    endpoint_config_name = f"{PROD_ENDPOINT_NAME}-config-{int(time.time())}"
+    sm.create_endpoint_config(
+        EndpointConfigName=endpoint_config_name,
+        ProductionVariants=[
+            {
+                "VariantName": "AllTraffic",
+                "ModelName": model_name,
+                "InitialInstanceCount": INITIAL_INSTANCE_COUNT,
+                "InstanceType": INSTANCE_TYPE,
+            }
+        ],
+    )
+    print("Created endpoint config:", endpoint_config_name)
+
+    if endpoint_exists(PROD_ENDPOINT_NAME):
+        sm.update_endpoint(EndpointName=PROD_ENDPOINT_NAME, EndpointConfigName=endpoint_config_name)
+        print("Updating endpoint:", PROD_ENDPOINT_NAME)
+    else:
+        sm.create_endpoint(EndpointName=PROD_ENDPOINT_NAME, EndpointConfigName=endpoint_config_name)
+        print("Creating endpoint:", PROD_ENDPOINT_NAME)
+
+    return {"status": "ok", "endpoint": PROD_ENDPOINT_NAME, "model_package": pkg_arn, "model": model_name}

@@ -110,6 +110,28 @@ resource "aws_iam_role_policy_attachment" "sagemaker_attach" {
   policy_arn = aws_iam_policy.sagemaker_exec_policy.arn
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #############################
 # GitHub OIDC Role
 #############################

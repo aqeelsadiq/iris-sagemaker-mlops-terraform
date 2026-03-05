@@ -16,8 +16,10 @@ jobs:
       PIPELINE_NAME: iris-pipeline
       S3_DATA_KEY: datasets/iris/iris-data.csv
       STAGING_ENDPOINT_NAME: iris-endpoint-staging
-      S3_BUCKET: sagemaker-aqeel-iris-us-east-1-387867038403
-      SAGEMAKER_EXEC_ROLE_ARN: arn:aws:iam::387867038403:role/AqeelIrisSageMakerExecutionRole
+      # S3_BUCKET: sagemaker-aqeel-iris-us-east-1-387867038403
+      S3_BUCKET: dev-drc-quickbook-ingestion
+      # SAGEMAKER_EXEC_ROLE_ARN: arn:aws:iam::387867038403:role/AqeelIrisSageMakerExecutionRole
+      SAGEMAKER_EXEC_ROLE_ARN: arn:aws:iam::387867038403:role/drc-SageMakerExecutionRole
       MODEL_GROUP: "iris-model-group"
     steps:
       - name: Checkout
@@ -30,10 +32,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-    #   # 4) Upload dataset to S3 (uses TF bucket output)
-    #   - name: Upload dataset to S3
-    #     run: |
-    #       aws s3 cp "data/iris-data.csv" "s3://${S3_BUCKET}/${S3_DATA_KEY}"
+      # 4) Upload dataset to S3 (uses TF bucket output)
+      - name: Upload dataset to S3
+        run: |
+          aws s3 cp "data/iris-data.csv" "s3://${S3_BUCKET}/${S3_DATA_KEY}"
 
       # 5) Setup Python
       - name: Setup Python
