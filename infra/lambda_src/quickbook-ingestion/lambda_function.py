@@ -45,12 +45,6 @@ def latest_approved_model_package_arn() -> str:
 
 
 def get_sklearn_image_uri(region: str, version: str, py_version: str) -> str:
-    # Official SageMaker SKLearn inference image format
-    # account ids vary by region; SageMaker provides this via sagemaker SDK,
-    # but we avoid it here by using a safe lookup approach: describe the model package's image if available.
-    #
-    # BEST approach: reuse the inference image from the model package itself if it exists.
-    # If it doesn't, you must hardcode/lookup the correct ECR URI for your region.
     raise NotImplementedError
 
 
@@ -75,10 +69,6 @@ def handler(event, context):
             "Either (1) register the model with inference image, or (2) provide IMAGE_URI env var to Lambda."
         )
 
-    # Create model with environment variables to run your script-mode inference
-    # NOTE: For Script Mode, the container needs SAGEMAKER_PROGRAM and SAGEMAKER_SUBMIT_DIRECTORY.
-    # Your inference.py should be available in the model.tar.gz under /opt/ml/model/code/.
-    # If your model artifact does NOT contain code/, this method will still fail.
     model_name = f"prod-model-{int(time.time())}"
 
     env = {

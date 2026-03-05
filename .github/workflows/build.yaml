@@ -29,7 +29,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      #Terraform apply
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -41,7 +40,6 @@ jobs:
         working-directory: infra
         run: terraform apply -auto-approve
 
-      #Read Terraform outputs into env vars
       - name: Export Terraform outputs
         working-directory: infra
         run: |
@@ -54,12 +52,10 @@ jobs:
           echo "Bucket: $S3_BUCKET"
           echo "Role:   $SAGEMAKER_EXEC_ROLE_ARN"
 
-      #Upload dataset to the bucket
       - name: Upload dataset to S3
         run: |
           aws s3 cp "data/iris-data.csv" "s3://${S3_BUCKET}/${S3_DATA_KEY}"
 
-      # SageMaker pipeline
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

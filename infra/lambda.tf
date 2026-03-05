@@ -6,8 +6,8 @@ module "auto_deploy_prod_lambda" {
   version = "8.7.0"
 
   function_name = lower(replace(local.placeholder, "%name%", "iris-auto-deploy-lambda"))
-  description   = "Scheduled lambda writing dummy files to S3"
-
+  trigger_on_package_timestamp = false
+  
   runtime = "python3.12"
   handler = "lambda_function.handler"
 

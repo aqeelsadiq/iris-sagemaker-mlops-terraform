@@ -90,68 +90,93 @@ def parse_args():
     p.add_argument("--endpoint-name", required=True)
     p.add_argument("--instance-type", default="ml.m5.large")
     p.add_argument("--initial-instance-count", type=int, default=1)
-    p.add_argument("--approval-status", default="Any")  # Any | Approved | PendingManualApproval
+    p.add_argument("--approval-status", default="Any") 
+    p.add_argument("--timeout-sec", type=int, default=3600)
     return p.parse_args()
+
+
+def endpoint_desc(sm, endpoint_name: str):
+    return sm.describe_endpoint(EndpointName=endpoint_name)
 
 
 def endpoint_exists(sm, endpoint_name: str) -> bool:
     try:
-        sm.describe_endpoint(EndpointName=endpoint_name)
+        endpoint_desc(sm, endpoint_name)
         return True
     except ClientError as e:
         code = e.response["Error"]["Code"]
-        if code in ("ValidationException", "ResourceNotFound"):
+        if code in ("ValidationException", "ResourceNotFoundException", "ResourceNotFound"):
             return False
         raise
 
 
-def wait_endpoint(sm, endpoint_name: str, timeout_sec: int = 1800):
+def wait_endpoint(sm, endpoint_name: str, timeout_sec: int):
+    """
+    Wait for endpoint to become InService. If it fails, raise with FailureReason.
+    """
     start = time.time()
+    last_status = None
     while True:
-        desc = sm.describe_endpoint(EndpointName=endpoint_name)
+        desc = endpoint_desc(sm, endpoint_name)
         status = desc["EndpointStatus"]
-        print("EndpointStatus:", status)
+        reason = desc.get("FailureReason")
+        cfg = desc.get("EndpointConfigName")
+
+        if status != last_status:
+            print(f"EndpointStatus: {status} | EndpointConfig: {cfg}")
+            if reason:
+                print(f"FailureReason (may be stale): {reason}")
+            last_status = status
 
         if status == "InService":
-            return
+            # InService can still show an old FailureReason; print it but don't fail.
+            return desc
         if status in ("Failed", "OutOfService"):
-            raise RuntimeError(f"Endpoint failed: {desc.get('FailureReason')}")
+            raise RuntimeError(f"Endpoint is {status}: {reason}")
 
         if time.time() - start > timeout_sec:
-            raise TimeoutError(f"Timed out waiting for endpoint {endpoint_name}")
+            raise TimeoutError(f"Timed out waiting for endpoint {endpoint_name} to become InService")
         time.sleep(30)
+
+
+def get_latest_model_package(sm, group_name: str, approval_status: str) -> str:
+    list_kwargs = dict(
+        ModelPackageGroupName=group_name,
+        SortBy="CreationTime",
+        SortOrder="Descending",
+        MaxResults=10,
+    )
+    if approval_status != "Any":
+        list_kwargs["ModelApprovalStatus"] = approval_status
+
+    resp = sm.list_model_packages(**list_kwargs)
+    pkgs = resp.get("ModelPackageSummaryList", [])
+    if not pkgs:
+        raise RuntimeError(f"No model packages found in '{group_name}' with status '{approval_status}'.")
+    return pkgs[0]["ModelPackageArn"]
 
 
 def main():
     args = parse_args()
     sm = boto3.client("sagemaker", region_name=args.region)
 
-    # 1) latest model package in the group
-    list_kwargs = dict(
-        ModelPackageGroupName=args.model_package_group_name,
-        SortBy="CreationTime",
-        SortOrder="Descending",
-        MaxResults=10,
-    )
-    if args.approval_status != "Any":
-        list_kwargs["ModelApprovalStatus"] = args.approval_status
+    # If endpoint exists and is Updating, wait first (avoids ValidationException like "Cannot update while updating")
+    if endpoint_exists(sm, args.endpoint_name):
+        d = endpoint_desc(sm, args.endpoint_name)
+        if d["EndpointStatus"] in ("Creating", "Updating", "SystemUpdating"):
+            print(f"Endpoint currently {d['EndpointStatus']}; waiting before deploying...")
+            wait_endpoint(sm, args.endpoint_name, args.timeout_sec)
 
-    resp = sm.list_model_packages(**list_kwargs)
-    pkgs = resp.get("ModelPackageSummaryList", [])
-    if not pkgs:
-        raise RuntimeError(
-            f"No model packages found in '{args.model_package_group_name}' with status '{args.approval_status}'."
-        )
+    # 1) Latest model package
+    pkg_arn = get_latest_model_package(sm, args.model_package_group_name, args.approval_status)
+    mp = sm.describe_model_package(ModelPackageName=pkg_arn)
 
-    pkg_arn = pkgs[0]["ModelPackageArn"]
-    desc = sm.describe_model_package(ModelPackageName=pkg_arn)
-
-    container = desc["InferenceSpecification"]["Containers"][0]
+    container = mp["InferenceSpecification"]["Containers"][0]
     image_uri = container["Image"]
     model_data_url = container["ModelDataUrl"]
 
     print("Using model package:", pkg_arn)
-    print("ApprovalStatus:", desc.get("ModelApprovalStatus"))
+    print("ApprovalStatus:", mp.get("ModelApprovalStatus"))
     print("Image:", image_uri)
     print("ModelDataUrl:", model_data_url)
 
@@ -159,18 +184,16 @@ def main():
     model_name = f"{args.endpoint_name}-model-{ts}"
     endpoint_config_name = f"{args.endpoint_name}-cfg-{ts}"
 
-    # 2) Create model using image + model artifacts (works even if package is PendingManualApproval)
+    # 2) Create model
     sm.create_model(
         ModelName=model_name,
         ExecutionRoleArn=args.execution_role_arn,
-        PrimaryContainer={
-            "Image": image_uri,
-            "ModelDataUrl": model_data_url,
-        },
+        PrimaryContainer={"Image": image_uri, "ModelDataUrl": model_data_url},
+        Tags=[{"Key": "ModelPackageArn", "Value": pkg_arn}],
     )
     print("Created model:", model_name)
 
-    # 3) Create endpoint config
+    # 3) Create endpoint config (tag it too)
     sm.create_endpoint_config(
         EndpointConfigName=endpoint_config_name,
         ProductionVariants=[
@@ -182,26 +205,24 @@ def main():
                 "InitialVariantWeight": 1.0,
             }
         ],
+        Tags=[{"Key": "ModelPackageArn", "Value": pkg_arn}],
     )
     print("Created endpoint config:", endpoint_config_name)
 
     # 4) Update or create endpoint
     if endpoint_exists(sm, args.endpoint_name):
         print("Endpoint exists -> updating:", args.endpoint_name)
-        sm.update_endpoint(
-            EndpointName=args.endpoint_name,
-            EndpointConfigName=endpoint_config_name,
-        )
+        sm.update_endpoint(EndpointName=args.endpoint_name, EndpointConfigName=endpoint_config_name)
     else:
         print("Endpoint does not exist -> creating:", args.endpoint_name)
-        sm.create_endpoint(
-            EndpointName=args.endpoint_name,
-            EndpointConfigName=endpoint_config_name,
-        )
+        sm.create_endpoint(EndpointName=args.endpoint_name, EndpointConfigName=endpoint_config_name)
 
-    # 5) Wait
-    wait_endpoint(sm, args.endpoint_name)
+    # 5) Wait for the deployment to finish
+    final_desc = wait_endpoint(sm, args.endpoint_name, args.timeout_sec)
     print("Endpoint is InService:", args.endpoint_name)
+    if final_desc.get("FailureReason"):
+        print("NOTE: Endpoint still has FailureReason text (may be from a previous failed attempt):")
+        print(final_desc["FailureReason"])
 
 
 if __name__ == "__main__":
