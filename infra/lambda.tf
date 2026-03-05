@@ -23,27 +23,24 @@ module "auto_deploy_prod_lambda" {
     REGION               = "us-east-1"                       
     MODEL_PACKAGE_GROUP  = "iris-model-group"
     PROD_ENDPOINT_NAME   = "iris-endpoint-prod"
-    SAGEMAKER_EXEC_ROLE_ARN = module.sagemaker_exec_role.iam_role_arn
+    SAGEMAKER_EXEC_ROLE_ARN = module.sagemaker_exec_role.arn
 
     INSTANCE_TYPE         = "ml.m5.large"                
     INITIAL_INSTANCE_COUNT = "1"
   }
 
   create_role = false
-  lambda_role = module.auto_deploy_prod_lambda_role.iam_role_arn
+  lambda_role = module.auto_deploy_prod_lambda_role.arn
 
   cloudwatch_logs_retention_in_days = 14
   tags                              = var.tags
 }
 
 
-# Allow EventBridge to invoke the Lambda
 resource "aws_lambda_permission" "allow_eventbridge_invoke_auto_deploy" {
   statement_id  = "AllowExecutionFromEventBridgeOnModelApproved"
   action        = "lambda:InvokeFunction"
   function_name = module.auto_deploy_prod_lambda.lambda_function_name
   principal     = "events.amazonaws.com"
-
-  # IMPORTANT: allow only *this* rule
   source_arn = module.on_model_approved_rule.eventbridge_rule_arns["on_model_approved"]
 }
