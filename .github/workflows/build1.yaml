@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+  
 jobs:
   pipeline:
     runs-on: ubuntu-latest
