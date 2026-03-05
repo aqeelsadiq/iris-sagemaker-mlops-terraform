@@ -18,7 +18,7 @@ from sagemaker.workflow.condition_step import ConditionStep
 from sagemaker.workflow.step_collections import RegisterModel
 
 from sagemaker.model_metrics import ModelMetrics, MetricsSource
-
+from sagemaker.metadata_properties import MetadataProperties
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -166,6 +166,10 @@ def main():
         )
     )
 
+
+    metadata_properties = MetadataProperties(
+        training_job=step_train.properties.TrainingJobName
+    )
     # -------------------------
     # 4) Register Model (manual approval)
     # -------------------------
@@ -183,6 +187,7 @@ def main():
         entry_point="inference.py",
         source_dir="src",
         model_metrics=model_metrics, 
+        metadata_properties=metadata_properties,
     )
 
     step_condition = ConditionStep(
