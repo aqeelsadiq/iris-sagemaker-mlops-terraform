@@ -1,123 +1,225 @@
-
-#working lambda function
-
 import os
-import time
 import json
 import boto3
+import pandas as pd
+import streamlit as st
 from botocore.exceptions import ClientError
 
-REGION = os.environ.get("REGION", "us-east-1")
-MODEL_PACKAGE_GROUP = os.environ["MODEL_PACKAGE_GROUP"]
-PROD_ENDPOINT_NAME = os.environ["PROD_ENDPOINT_NAME"]
-SAGEMAKER_EXEC_ROLE_ARN = os.environ["SAGEMAKER_EXEC_ROLE_ARN"]
+FEATURES = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
 
-INSTANCE_TYPE = os.environ.get("INSTANCE_TYPE", "ml.m5.large")
-INITIAL_INSTANCE_COUNT = int(os.environ.get("INITIAL_INSTANCE_COUNT", "1"))
+st.set_page_config(page_title="Iris SageMaker Endpoint Tester", layout="wide")
 
-# This must match your training/inference framework
-SKLEARN_VERSION = os.environ.get("SKLEARN_VERSION", "1.2-1")
-PY_VERSION = os.environ.get("PY_VERSION", "py3")
+st.title("🌸 Iris — SageMaker Endpoint Tester (Streamlit)")
 
-sm = boto3.client("sagemaker", region_name=REGION)
+# ----------------------------
+# Helpers
+# ----------------------------
+def get_runtime_client(region: str):
+    # SageMaker Runtime endpoint is regional
+    return boto3.client("sagemaker-runtime", region_name=region)
 
+def invoke_endpoint_json(smrt, endpoint_name: str, instances: list[dict]):
+    """
+    Sends JSON payload your inference.py expects:
+      {"instances": [{"sepal_length":..., ...}, ...]}
+    """
+    payload = {"instances": instances}
+    body = json.dumps(payload).encode("utf-8")
 
-def endpoint_exists(endpoint_name: str) -> bool:
-    try:
-        sm.describe_endpoint(EndpointName=endpoint_name)
-        return True
-    except ClientError as e:
-        code = e.response["Error"]["Code"]
-        if code in ("ValidationException", "ResourceNotFound"):
-            return False
-        raise
-
-
-def latest_approved_model_package_arn() -> str:
-    resp = sm.list_model_packages(
-        ModelPackageGroupName=MODEL_PACKAGE_GROUP,
-        ModelApprovalStatus="Approved",
-        SortBy="CreationTime",
-        SortOrder="Descending",
-        MaxResults=1,
+    resp = smrt.invoke_endpoint(
+        EndpointName=endpoint_name,
+        ContentType="application/json",
+        Accept="application/json",
+        Body=body,
     )
-    if not resp.get("ModelPackageSummaryList"):
-        raise RuntimeError(f"No Approved model package found in group: {MODEL_PACKAGE_GROUP}")
-    return resp["ModelPackageSummaryList"][0]["ModelPackageArn"]
+    raw = resp["Body"].read().decode("utf-8")
+    return json.loads(raw)
 
+def normalize_instances_from_df(df: pd.DataFrame) -> list[dict]:
+    # Allow CSVs with either correct headers OR 4 unnamed columns
+    df = df.copy()
 
-def get_sklearn_image_uri(region: str, version: str, py_version: str) -> str:
-    # Official SageMaker SKLearn inference image format
-    # account ids vary by region; SageMaker provides this via sagemaker SDK,
-    # but we avoid it here by using a safe lookup approach: describe the model package's image if available.
-    #
-    # BEST approach: reuse the inference image from the model package itself if it exists.
-    # If it doesn't, you must hardcode/lookup the correct ECR URI for your region.
-    raise NotImplementedError
+    # If columns are like 0,1,2,3 rename them
+    if list(df.columns) == [0, 1, 2, 3] and df.shape[1] == 4:
+        df.columns = FEATURES
 
+    # If user uploaded with extra columns, keep only feature columns if possible
+    missing = [c for c in FEATURES if c not in df.columns]
+    if missing:
+        raise ValueError(f"CSV missing required columns: {missing}. Expected: {FEATURES}")
 
-def handler(event, context):
-    print("EVENT:", json.dumps(event))
+    df = df[FEATURES].dropna()
+    if df.empty:
+        raise ValueError("No valid rows found after selecting feature columns and dropping NA.")
 
-    pkg_arn = event.get("detail", {}).get("ModelPackageArn") or latest_approved_model_package_arn()
-    print("Using Approved ModelPackageArn:", pkg_arn)
+    # Convert to list of dicts for JSON payload
+    return df.to_dict(orient="records")
 
-    desc = sm.describe_model_package(ModelPackageName=pkg_arn)
+# ----------------------------
+# Sidebar config
+# ----------------------------
+with st.sidebar:
+    st.header("⚙️ Settings")
 
-    # Get model artifact
-    container = desc["InferenceSpecification"]["Containers"][0]
-    model_data = container["ModelDataUrl"]
-    print("ModelDataUrl:", model_data)
+    default_region = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "us-east-1"
+    region = st.text_input("AWS Region", value=default_region)
 
-    # Prefer image URI from Model Package if present
-    image_uri = container.get("Image")
-    if not image_uri:
-        raise RuntimeError(
-            "Model package does not contain container Image URI. "
-            "Either (1) register the model with inference image, or (2) provide IMAGE_URI env var to Lambda."
-        )
+    default_endpoint = os.environ.get("SAGEMAKER_ENDPOINT_NAME", "iris-endpoint-staging")
+    endpoint_name = st.text_input("Endpoint name", value=default_endpoint)
 
-    # Create model with environment variables to run your script-mode inference
-    # NOTE: For Script Mode, the container needs SAGEMAKER_PROGRAM and SAGEMAKER_SUBMIT_DIRECTORY.
-    # Your inference.py should be available in the model.tar.gz under /opt/ml/model/code/.
-    # If your model artifact does NOT contain code/, this method will still fail.
-    model_name = f"prod-model-{int(time.time())}"
+    st.caption(
+        "Tip: set env vars `AWS_REGION` and `SAGEMAKER_ENDPOINT_NAME` to avoid typing each time."
+    )
 
-    env = {
-        "SAGEMAKER_PROGRAM": "inference.py",
-        "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
+# Create runtime client
+try:
+    smrt = get_runtime_client(region)
+except Exception as e:
+    st.error(f"Failed to create SageMaker Runtime client: {e}")
+    st.stop()
+
+tabs = st.tabs(["Single prediction", "Batch CSV", "Raw request"])
+
+# ----------------------------
+# Tab 1: Single prediction
+# ----------------------------
+with tabs[0]:
+    st.subheader("Single prediction")
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        sepal_length = st.number_input("sepal_length", value=5.1)
+    with c2:
+        sepal_width = st.number_input("sepal_width", value=3.5)
+    with c3:
+        petal_length = st.number_input("petal_length", value=1.4)
+    with c4:
+        petal_width = st.number_input("petal_width", value=0.2)
+
+    if st.button("Invoke endpoint", type="primary"):
+        instance = {
+            "sepal_length": float(sepal_length),
+            "sepal_width": float(sepal_width),
+            "petal_length": float(petal_length),
+            "petal_width": float(petal_width),
+        }
+        try:
+            out = invoke_endpoint_json(smrt, endpoint_name, [instance])
+            st.success("Success ✅")
+            st.json(out)
+
+            # Nice display
+            if "species" in out and isinstance(out["species"], list) and out["species"]:
+                st.metric("Predicted species", out["species"][0])
+        except ClientError as e:
+            st.error("AWS ClientError while invoking endpoint")
+            st.code(str(e))
+        except Exception as e:
+            st.error("Failed to invoke endpoint")
+            st.code(str(e))
+
+# ----------------------------
+# Tab 2: Batch CSV
+# ----------------------------
+with tabs[1]:
+    st.subheader("Batch prediction from CSV")
+
+    st.write(
+        "Upload a CSV with columns: "
+        f"`{', '.join(FEATURES)}`. "
+        "Optional: CSV can be 4 columns without headers."
+    )
+
+    uploaded = st.file_uploader("Upload CSV", type=["csv"])
+
+    if uploaded is not None:
+        try:
+            df = pd.read_csv(uploaded)
+            st.write("Preview:")
+            st.dataframe(df.head(20))
+
+            instances = normalize_instances_from_df(df)
+
+            col_a, col_b = st.columns([1, 2])
+            with col_a:
+                st.write(f"Rows to send: **{len(instances)}**")
+                max_rows = st.number_input("Max rows to invoke (safety)", min_value=1, value=min(50, len(instances)))
+            with col_b:
+                st.info(
+                    "SageMaker has payload size limits. If your file is big, invoke in chunks."
+                )
+
+            if st.button("Invoke endpoint for CSV"):
+                # chunk for safety
+                instances = instances[: int(max_rows)]
+                out = invoke_endpoint_json(smrt, endpoint_name, instances)
+
+                st.success("Success ✅")
+                st.json(out)
+
+                # Build a nice output table if response matches your inference.py
+                if "species" in out and "class_index" in out:
+                    res_df = pd.DataFrame(
+                        {
+                            "class_index": out["class_index"],
+                            "species": out["species"],
+                        }
+                    )
+                    st.subheader("Predictions")
+                    st.dataframe(res_df)
+
+        except Exception as e:
+            st.error("Could not process CSV / invoke endpoint")
+            st.code(str(e))
+
+# ----------------------------
+# Tab 3: Raw request builder
+# ----------------------------
+with tabs[2]:
+    st.subheader("Raw request (advanced)")
+
+    example_payload = {
+        "instances": [
+            {"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2},
+            {"sepal_length": 6.2, "sepal_width": 2.8, "petal_length": 4.8, "petal_width": 1.8},
+        ]
     }
 
-    sm.create_model(
-        ModelName=model_name,
-        ExecutionRoleArn=SAGEMAKER_EXEC_ROLE_ARN,
-        PrimaryContainer={
-            "Image": image_uri,
-            "ModelDataUrl": model_data,
-            "Environment": env,
-        },
+    raw = st.text_area(
+        "JSON Body to send",
+        value=json.dumps(example_payload, indent=2),
+        height=250,
     )
-    print("Created model:", model_name)
 
-    endpoint_config_name = f"{PROD_ENDPOINT_NAME}-config-{int(time.time())}"
-    sm.create_endpoint_config(
-        EndpointConfigName=endpoint_config_name,
-        ProductionVariants=[
-            {
-                "VariantName": "AllTraffic",
-                "ModelName": model_name,
-                "InitialInstanceCount": INITIAL_INSTANCE_COUNT,
-                "InstanceType": INSTANCE_TYPE,
-            }
-        ],
-    )
-    print("Created endpoint config:", endpoint_config_name)
+    col1, col2 = st.columns(2)
+    with col1:
+        content_type = st.text_input("ContentType", value="application/json")
+    with col2:
+        accept = st.text_input("Accept", value="application/json")
 
-    if endpoint_exists(PROD_ENDPOINT_NAME):
-        sm.update_endpoint(EndpointName=PROD_ENDPOINT_NAME, EndpointConfigName=endpoint_config_name)
-        print("Updating endpoint:", PROD_ENDPOINT_NAME)
-    else:
-        sm.create_endpoint(EndpointName=PROD_ENDPOINT_NAME, EndpointConfigName=endpoint_config_name)
-        print("Creating endpoint:", PROD_ENDPOINT_NAME)
+    if st.button("Invoke with raw JSON"):
+        try:
+            # validate JSON
+            parsed = json.loads(raw)
 
-    return {"status": "ok", "endpoint": PROD_ENDPOINT_NAME, "model_package": pkg_arn, "model": model_name}
+            resp = smrt.invoke_endpoint(
+                EndpointName=endpoint_name,
+                ContentType=content_type,
+                Accept=accept,
+                Body=json.dumps(parsed).encode("utf-8"),
+            )
+            out_raw = resp["Body"].read().decode("utf-8")
+
+            st.success("Success ✅")
+            # try to pretty print JSON if possible
+            try:
+                st.json(json.loads(out_raw))
+            except Exception:
+                st.code(out_raw)
+
+        except ClientError as e:
+            st.error("AWS ClientError while invoking endpoint")
+            st.code(str(e))
+        except Exception as e:
+            st.error("Failed to invoke endpoint")
+            st.code(str(e))

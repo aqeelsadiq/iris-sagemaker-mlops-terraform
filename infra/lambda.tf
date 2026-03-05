@@ -1,0 +1,49 @@
+#################################
+# Lambda
+#################################
+module "auto_deploy_prod_lambda" {
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "8.7.0"
+
+  function_name = lower(replace(local.placeholder, "%name%", "iris-auto-deploy-lambda"))
+  description   = "Scheduled lambda writing dummy files to S3"
+
+  runtime = "python3.12"
+  handler = "lambda_function.handler"
+
+  build_in_docker = true
+
+  artifacts_dir = "${path.root}/lambdas/quickbook-ingestion2/build/"
+  source_path = "./lambda_src/quickbook-ingestion/"
+
+  timeout     = 30
+  memory_size = 256
+
+  environment_variables = {
+    REGION               = "us-east-1"                       
+    MODEL_PACKAGE_GROUP  = "iris-model-group"
+    PROD_ENDPOINT_NAME   = "iris-endpoint-prod"
+    SAGEMAKER_EXEC_ROLE_ARN = module.sagemaker_exec_role.iam_role_arn
+
+    INSTANCE_TYPE         = "ml.m5.large"                
+    INITIAL_INSTANCE_COUNT = "1"
+  }
+
+  create_role = false
+  lambda_role = module.auto_deploy_prod_lambda_role.iam_role_arn
+
+  cloudwatch_logs_retention_in_days = 14
+  tags                              = var.tags
+}
+
+
+# Allow EventBridge to invoke the Lambda
+resource "aws_lambda_permission" "allow_eventbridge_invoke_auto_deploy" {
+  statement_id  = "AllowExecutionFromEventBridgeOnModelApproved"
+  action        = "lambda:InvokeFunction"
+  function_name = module.auto_deploy_prod_lambda.lambda_function_name
+  principal     = "events.amazonaws.com"
+
+  # IMPORTANT: allow only *this* rule
+  source_arn = module.on_model_approved_rule.eventbridge_rule_arns["on_model_approved"]
+}
