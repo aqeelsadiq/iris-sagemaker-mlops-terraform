@@ -90,7 +90,7 @@ def parse_args():
     p.add_argument("--endpoint-name", required=True)
     p.add_argument("--instance-type", default="ml.m5.large")
     p.add_argument("--initial-instance-count", type=int, default=1)
-    p.add_argument("--approval-status", default="Any")  # Approved | PendingManualApproval | Any
+    p.add_argument("--approval-status", default="Any")  # Any | Approved | PendingManualApproval
     return p.parse_args()
 
 
@@ -115,7 +115,7 @@ def wait_endpoint(sm, endpoint_name: str, timeout_sec: int = 1800):
         if status == "InService":
             return
         if status in ("Failed", "OutOfService"):
-            raise RuntimeError(f"Endpoint ended in status={status}. Reason={desc.get('FailureReason')}")
+            raise RuntimeError(f"Endpoint failed: {desc.get('FailureReason')}")
 
         if time.time() - start > timeout_sec:
             raise TimeoutError(f"Timed out waiting for endpoint {endpoint_name}")
@@ -126,7 +126,7 @@ def main():
     args = parse_args()
     sm = boto3.client("sagemaker", region_name=args.region)
 
-    # 1) Find latest model package
+    # 1) latest model package in the group
     list_kwargs = dict(
         ModelPackageGroupName=args.model_package_group_name,
         SortBy="CreationTime",
@@ -140,25 +140,37 @@ def main():
     pkgs = resp.get("ModelPackageSummaryList", [])
     if not pkgs:
         raise RuntimeError(
-            f"No model packages found in group '{args.model_package_group_name}' with approval '{args.approval_status}'."
+            f"No model packages found in '{args.model_package_group_name}' with status '{args.approval_status}'."
         )
 
-    model_package_arn = pkgs[0]["ModelPackageArn"]
-    print("Using model package:", model_package_arn)
+    pkg_arn = pkgs[0]["ModelPackageArn"]
+    desc = sm.describe_model_package(ModelPackageName=pkg_arn)
 
-    # 2) Create SageMaker Model from Model Package (recommended registry deploy)
+    container = desc["InferenceSpecification"]["Containers"][0]
+    image_uri = container["Image"]
+    model_data_url = container["ModelDataUrl"]
+
+    print("Using model package:", pkg_arn)
+    print("ApprovalStatus:", desc.get("ModelApprovalStatus"))
+    print("Image:", image_uri)
+    print("ModelDataUrl:", model_data_url)
+
     ts = int(time.time())
     model_name = f"{args.endpoint_name}-model-{ts}"
     endpoint_config_name = f"{args.endpoint_name}-cfg-{ts}"
 
+    # 2) Create model using image + model artifacts (works even if package is PendingManualApproval)
     sm.create_model(
         ModelName=model_name,
-        PrimaryContainer={"ModelPackageName": model_package_arn},
         ExecutionRoleArn=args.execution_role_arn,
+        PrimaryContainer={
+            "Image": image_uri,
+            "ModelDataUrl": model_data_url,
+        },
     )
     print("Created model:", model_name)
 
-    # 3) Create new endpoint config
+    # 3) Create endpoint config
     sm.create_endpoint_config(
         EndpointConfigName=endpoint_config_name,
         ProductionVariants=[
@@ -187,7 +199,7 @@ def main():
             EndpointConfigName=endpoint_config_name,
         )
 
-    # 5) Wait until InService
+    # 5) Wait
     wait_endpoint(sm, args.endpoint_name)
     print("Endpoint is InService:", args.endpoint_name)
 
