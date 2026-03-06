@@ -72,7 +72,7 @@ def main():
     sm_client = boto_sess.client("sagemaker")
 
     # Ensure the model package group exists before pipeline execution
-    ensure_model_package_group(sm_client, args.model_package_group_name)
+    # ensure_model_package_group(sm_client, args.model_package_group_name)
 
     pipeline_sess = PipelineSession(
         boto_session=boto_sess,

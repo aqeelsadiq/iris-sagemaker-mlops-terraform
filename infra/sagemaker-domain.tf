@@ -37,16 +37,20 @@ resource "aws_sagemaker_domain" "studio" {
 }
 
 
-
+########################
+# Sagemaker User Profile
+########################
 resource "aws_sagemaker_user_profile" "user_profile_name" {
   domain_id         = aws_sagemaker_domain.studio.id
   user_profile_name = "aqeelsadiq"
 }
 
-
+#######################
+# Sagemaker Model Group
+#######################
 resource "aws_sagemaker_model_package_group" "model_group" {
   model_package_group_name        = var.model_package_group_name
-  model_package_group_description = "Model registry for ${var.project}"
+  model_package_group_description = "Model registry for drc"
 
   tags = var.tags
 }
