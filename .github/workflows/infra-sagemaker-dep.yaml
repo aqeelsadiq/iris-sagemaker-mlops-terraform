@@ -16,7 +16,7 @@ jobs:
       PIPELINE_NAME: dev-drc-iris-pipeline
       S3_DATA_KEY: datasets/iris/iris-data.csv
       STAGING_ENDPOINT_NAME: staging-drc-iris-endpoint
-      MODEL_GROUP: dev-drc-iris-model-group
+      MODEL_GROUP: dev-drc-iris-model-group1
 
     steps:
       - name: Checkout

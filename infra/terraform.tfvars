@@ -24,3 +24,4 @@ private_subnets = [
 
 sagemaker_domain_auth_mode      = "IAM"
 sagemaker_kernel_instance_type  = "ml.t3.medium"
+model_package_group_name = "dev-drc-iris-model-group1"

@@ -38,31 +38,31 @@ def parse_args():
     return p.parse_args()
 
 
-def ensure_model_package_group(sm_client, group_name: str):
-    try:
-        resp = sm_client.describe_model_package_group(
-            ModelPackageGroupName=group_name
-        )
-        print(
-            f"Model package group already exists: "
-            f"{resp['ModelPackageGroupName']}"
-        )
-        return
+# def ensure_model_package_group(sm_client, group_name: str):
+#     try:
+#         resp = sm_client.describe_model_package_group(
+#             ModelPackageGroupName=group_name
+#         )
+#         print(
+#             f"Model package group already exists: "
+#             f"{resp['ModelPackageGroupName']}"
+#         )
+#         return
 
-    except ClientError as e:
-        error_code = e.response["Error"]["Code"]
+#     except ClientError as e:
+#         error_code = e.response["Error"]["Code"]
 
-        # If group does not exist, create it
-        if error_code in ("ValidationException", "ResourceNotFound"):
-            print(f"Model package group not found. Creating: {group_name}")
-            sm_client.create_model_package_group(
-                ModelPackageGroupName=group_name,
-                ModelPackageGroupDescription=f"Model package group for {group_name}",
-            )
-            print(f"Created model package group: {group_name}")
-            return
+#         # If group does not exist, create it
+#         if error_code in ("ValidationException", "ResourceNotFound"):
+#             print(f"Model package group not found. Creating: {group_name}")
+#             sm_client.create_model_package_group(
+#                 ModelPackageGroupName=group_name,
+#                 ModelPackageGroupDescription=f"Model package group for {group_name}",
+#             )
+#             print(f"Created model package group: {group_name}")
+#             return
 
-        raise
+#         raise
 
 
 def main():

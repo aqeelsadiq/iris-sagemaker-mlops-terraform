@@ -21,7 +21,7 @@ module "auto_deploy_prod_lambda" {
 
   environment_variables = {
     REGION               = "us-east-1"                       
-    MODEL_PACKAGE_GROUP  = "${var.env}-${var.project}-iris-model-group"
+    MODEL_PACKAGE_GROUP  = aws_sagemaker_model_package_group.model_group.id
     PROD_ENDPOINT_NAME   = "prod-drc-iris-endpoint"
     SAGEMAKER_EXEC_ROLE_ARN = module.sagemaker_exec_role.arn
 

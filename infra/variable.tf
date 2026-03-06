@@ -68,3 +68,8 @@ variable "sagemaker_kernel_instance_type" {
   type        = string
   default     = "ml.t3.medium"
 }
+
+variable "model_package_group_name" {
+  description = "SageMaker Model Package Group name"
+  type        = string
+}
