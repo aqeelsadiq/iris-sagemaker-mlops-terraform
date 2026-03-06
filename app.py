@@ -59,7 +59,7 @@ def normalize_instances_from_df(df: pd.DataFrame) -> list[dict]:
 # Sidebar config
 # ----------------------------
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("Settings")
 
     default_region = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "us-east-1"
     region = st.text_input("AWS Region", value=default_region)

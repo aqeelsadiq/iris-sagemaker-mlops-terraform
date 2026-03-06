@@ -26,7 +26,7 @@ def main():
     train_df.to_csv(TRAIN_OUT, index=False)
     test_df.to_csv(TEST_OUT, index=False)
 
-    print("✅ Preprocessing complete")
+    print("Preprocessing complete")
     print("Train:", TRAIN_OUT, "rows:", len(train_df))
     print("Test :", TEST_OUT, "rows:", len(test_df))
 

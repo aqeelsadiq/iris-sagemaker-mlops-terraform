@@ -60,7 +60,6 @@ def main():
     acc = float(accuracy_score(y_true, preds))
     f1 = float(f1_score(y_true, preds, average="macro"))
 
-    #SIMPLE JSON (no nested schema issues)
     payload = {
         "accuracy": acc,
         "f1_macro": f1
