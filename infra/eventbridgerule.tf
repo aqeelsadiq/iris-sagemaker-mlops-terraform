@@ -16,7 +16,7 @@ module "on_model_approved_rule" {
         "detail-type" = ["SageMaker Model Package State Change"]
         detail = {
           ModelApprovalStatus   = ["Approved"]
-          ModelPackageGroupName = [var.model_package_group_name]
+          ModelPackageGroupName = ["${var.env}-${var.project}-iris-model-group"]
         }
       })
     }

@@ -5,7 +5,6 @@ module "sagemaker_exec_role" {
   name        = "${var.env}-${var.project}-SageMakerExecutionRole"
   path        = "/"
   description = "SageMaker execution role for pipelines/training/endpoint"
-
   trust_policy_permissions = {
     SageMakerAssumeRole = {
       actions = ["sts:AssumeRole"]

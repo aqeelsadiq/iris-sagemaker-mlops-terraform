@@ -13,10 +13,10 @@ jobs:
 
     env:
       AWS_REGION: us-east-1
-      PIPELINE_NAME: iris-pipeline
+      PIPELINE_NAME: dev-drc-iris-pipeline
       S3_DATA_KEY: datasets/iris/iris-data.csv
-      STAGING_ENDPOINT_NAME: iris-endpoint-staging
-      MODEL_GROUP: iris-model-group1
+      STAGING_ENDPOINT_NAME: staging-drc-iris-endpoint
+      MODEL_GROUP: dev-drc-iris-model-group
 
     steps:
       - name: Checkout
