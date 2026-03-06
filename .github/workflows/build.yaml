@@ -16,7 +16,7 @@ jobs:
       PIPELINE_NAME: iris-pipeline
       S3_DATA_KEY: datasets/iris/iris-data.csv
       STAGING_ENDPOINT_NAME: iris-endpoint-staging
-      MODEL_GROUP: iris-model-group
+      MODEL_GROUP: iris-model-group1
 
     steps:
       - name: Checkout

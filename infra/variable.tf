@@ -18,7 +18,7 @@ variable "project" {
 }
 variable "model_package_group_name" {
   type    = string
-  default = "iris-model-group"
+  default = "iris-model-group1"
 }
 # variable "lambda_source_dir" {
 #   type = string
