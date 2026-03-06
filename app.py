@@ -9,7 +9,7 @@ FEATURES = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
 
 st.set_page_config(page_title="Iris SageMaker Endpoint Tester", layout="wide")
 
-st.title("🌸 Iris — SageMaker Endpoint Tester (Streamlit)")
+st.title(" Iris — SageMaker Endpoint Tester (Streamlit)")
 
 # ----------------------------
 # Helpers
@@ -105,7 +105,7 @@ with tabs[0]:
         }
         try:
             out = invoke_endpoint_json(smrt, endpoint_name, [instance])
-            st.success("Success ✅")
+            st.success("Success ")
             st.json(out)
 
             # Nice display
@@ -154,7 +154,7 @@ with tabs[1]:
                 instances = instances[: int(max_rows)]
                 out = invoke_endpoint_json(smrt, endpoint_name, instances)
 
-                st.success("Success ✅")
+                st.success("Success ")
                 st.json(out)
 
                 # Build a nice output table if response matches your inference.py
@@ -210,7 +210,7 @@ with tabs[2]:
             )
             out_raw = resp["Body"].read().decode("utf-8")
 
-            st.success("Success ✅")
+            st.success("Success ")
             # try to pretty print JSON if possible
             try:
                 st.json(json.loads(out_raw))
