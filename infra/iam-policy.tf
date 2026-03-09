@@ -21,8 +21,8 @@ module "forecast_sagemaker_exec_custom_policy" {
         "s3:DeleteObject"
       ],
       "Resource": [
-        "${module.forecast-zone.s3_bucket_arn}/*",
-        "${module.forecast-zone.s3_bucket_arn}"
+        "${module.raw-zone.s3_bucket_arn}/*",
+        "${module.raw-zone.s3_bucket_arn}"
       ]
     },
     {
