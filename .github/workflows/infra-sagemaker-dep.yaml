@@ -1,4 +1,4 @@
-name: Infra + SageMaker Pipeline + Deploy Staging
+name: Infra + SageMaker Pipeline + Deploy Staging env
 
 on:
   push:
