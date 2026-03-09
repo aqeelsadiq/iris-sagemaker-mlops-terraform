@@ -13,7 +13,7 @@ module "auto_deploy_prod_lambda" {
 
   build_in_docker = true
 
-  artifacts_dir = "${path.root}/lambdas/quickbook-ingestion2/build/"
+  artifacts_dir = "${path.root}/lambdas/quickbook-ingestion/build"
   source_path = "./lambda_src/quickbook-ingestion/"
 
   timeout     = 30
