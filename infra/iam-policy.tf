@@ -1,93 +1,98 @@
-module "sagemaker_exec_custom_policy" {
+module "forecast_sagemaker_exec_custom_policy" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-policy"
   version = "6.4.0"
 
-  name        = "${var.env}-${var.project}-SageMakerExecCustomPolicy"
+  name        = lower(replace(local.placeholder, "%name%", "forecast-sagemaker-policy"))
   path        = "/"
-  description = "Custom permissions for SageMaker execution role (S3, ECR pull, KMS, PassRole)"
+  description = "Custom permissions for SageMaker execution role (S3, KMS, PassRole)"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "S3ListBucket"
-        Effect   = "Allow"
-        Action   = ["s3:ListBucket"]
-        Resource = module.quick_ingestion_s3.s3_bucket_arn
-      },
-      {
-        Sid      = "S3ObjectAccess"
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${module.quick_ingestion_s3.s3_bucket_arn}/*"
-      },
-      {
-        Sid    = "ECRPull"
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-        Resource = "*"
-      },
-      {
-        Sid    = "KMSForEncryptedArtifacts"
-        Effect = "Allow"
-        Action = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
-        Resource = "*"
-      },
-      {
-        Sid    = "PassRoleToSageMakerOnly"
-        Effect = "Allow"
-        Action = ["iam:PassRole"]
-        Resource = "arn:aws:iam::*:role/${var.env}-${var.project}-*"
-        Condition = {
-          StringEquals = {
-            "iam:PassedToService" = "sagemaker.amazonaws.com"
-          }
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowRawZoneS3Access",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "${module.forecast-zone.s3_bucket_arn}/*",
+        "${module.forecast-zone.s3_bucket_arn}"
+      ]
+    },
+    {
+      "Sid": "AllowSageMakerDomainAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:*"
+      ],
+      "Resource": [
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:domain/${aws_sagemaker_domain.forecast_sagemaker_domain.id}",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:user-profile/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:app/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*"
+      ]
+    },
+    {
+      "Sid": "KMSForEncryptedArtifacts",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassRoleToSageMakerOnly",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/${terraform.workspace}-${var.project}-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "sagemaker.amazonaws.com"
         }
       }
-    ]
-  })
+    }
+  ]
+}
+EOF
 
   tags = var.tags
 }
 
-
-
-
-
-
-module "auto_deploy_prod_lambda_policy" {
+module "forecast_auto_deploy_lambda_policy" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-policy"
   version = "6.4.0"
 
-  name        = "${var.env}-${var.project}-AutoDeployProdLambdaPolicy"
+  name        = lower(replace(local.placeholder, "%name%", "forecast-lambda-policy"))
   path        = "/"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "SageMakerDeployOps"
         Effect = "Allow"
-        Action = [
-          "sagemaker:ListModelPackages",
-          "sagemaker:DescribeModelPackage",
-          "sagemaker:CreateModel",
-          "sagemaker:CreateEndpointConfig",
-          "sagemaker:CreateEndpoint",
-          "sagemaker:UpdateEndpoint",
-          "sagemaker:DescribeEndpoint"
+        Action = ["sagemaker:*"]
+        Resource = [
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:domain/${aws_sagemaker_domain.forecast_sagemaker_domain.id}",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:user-profile/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:app/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*"
         ]
-        Resource = "*"
       },
       {
         Sid      = "PassSageMakerExecRole"
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
-        Resource = module.sagemaker_exec_role.arn
+        Resource = module.forecast_sagemaker_exec_role.arn
       }
     ]
   })

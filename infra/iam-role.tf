@@ -1,8 +1,8 @@
-module "sagemaker_exec_role" {
+module "forecast_sagemaker_exec_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role"
   version = "6.4.0"
 
-  name        = "${var.env}-${var.project}-SageMakerExecutionRole"
+  name        = lower(replace(local.placeholder, "%name%", "forecast-sagemaker"))
   path        = "/"
   description = "SageMaker execution role for pipelines/training/endpoint"
   trust_policy_permissions = {
@@ -16,9 +16,8 @@ module "sagemaker_exec_role" {
   }
 
   policies = {
-    AmazonSageMakerFullAccess = "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
     CloudWatchLogsFullAccess  = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-    custom                    = module.sagemaker_exec_custom_policy.arn
+    ForecastSageMakerExecutionPolicy  = module.forecast_sagemaker_exec_custom_policy.arn
   }
 
   tags = var.tags
@@ -26,13 +25,13 @@ module "sagemaker_exec_role" {
 
 
 
-module "auto_deploy_prod_lambda_role" {
+module "forecast_auto_deploy_lambda_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role"
   version = "6.4.0"
 
-  name        = "${var.env}-${var.project}-AutoDeployProdLambdaRole"
+  name        = lower(replace(local.placeholder, "%name%", "forecast-auto-deploy"))
   path        = "/"
-  description = "Role for AutoDeployProd Lambda"
+  description = "Role for Forecast Auto-Deploy Lambda"
 
   trust_policy_permissions = {
     LambdaAssumeRole = {
@@ -47,7 +46,7 @@ module "auto_deploy_prod_lambda_role" {
   policies = {
     AWSLambdaBasicExecutionRole = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
     CloudWatchLogsFullAccess    = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-    custom  = module.auto_deploy_prod_lambda_policy.arn
+    ForecastAutoDeployLambdaPolicy  = module.forecast_auto_deploy_lambda_policy.arn
   }
 
   tags = var.tags

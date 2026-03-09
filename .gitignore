@@ -1,4 +1,4 @@
 .venv
 **.terraform
-infra/lambdas/
+# infra/lambdas/
 infra/.terraform.lock.hcl
