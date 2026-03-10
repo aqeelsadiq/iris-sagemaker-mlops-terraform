@@ -67,6 +67,23 @@ module "forecast_sagemaker_exec_custom_policy" {
       ]
     },
     {
+      "Sid": "AllowModelPackageGroupActions",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:AddTags",
+        "sagemaker:ListTags",
+        "sagemaker:CreateModelPackage",
+        "sagemaker:DescribeModelPackage",
+        "sagemaker:UpdateModelPackage",
+        "sagemaker:CreateModelPackageGroup",
+        "sagemaker:DescribeModelPackageGroup"
+      ],
+      "Resource": [
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package-group/*",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package/*"
+      ]
+    },
+    {
       "Sid": "KMSForEncryptedArtifacts",
       "Effect": "Allow",
       "Action": [
