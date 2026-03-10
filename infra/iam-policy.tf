@@ -39,16 +39,16 @@ module "forecast_sagemaker_exec_custom_policy" {
       ]
     },
     {
-      Sid    = "AllowProcessingJobsForPipeline"
-      Effect = "Allow"
-      Action = [
+      "Sid"    = "AllowProcessingJobsForPipeline"
+      "Effect" = "Allow"
+      "Action" = [
         "sagemaker:CreateProcessingJob",
         "sagemaker:DescribeProcessingJob",
         "sagemaker:StopProcessingJob",
         "sagemaker:AddTags",
         "sagemaker:ListTags"
       ]
-      Resource = [
+      "Resource" = [
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:processing-job/*"
       ]
     },
