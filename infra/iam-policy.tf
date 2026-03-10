@@ -53,6 +53,20 @@ module "forecast_sagemaker_exec_custom_policy" {
       ]
     },
     {
+      "Sid": "AllowTrainingJobsForPipeline",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:DescribeTrainingJob",
+        "sagemaker:StopTrainingJob",
+        "sagemaker:AddTags",
+        "sagemaker:ListTags"
+      ],
+      "Resource": [
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:training-job/*"
+      ]
+    },
+    {
       "Sid": "KMSForEncryptedArtifacts",
       "Effect": "Allow",
       "Action": [
@@ -95,13 +109,13 @@ module "forecast_auto_deploy_lambda_policy" {
       {
         Effect = "Allow"
         Action = ["sagemaker:*"]
-        Resource = "*"
-        # Resource = [
-        #     "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:domain/${aws_sagemaker_domain.forecast_sagemaker_domain.id}",
-        #     "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:user-profile/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
-        #     "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:app/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
-        #     "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*"
-        # ]
+        # Resource = "*"
+        Resource = [
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:domain/${aws_sagemaker_domain.forecast_sagemaker_domain.id}",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:user-profile/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:app/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*"
+        ]
       },
       {
         Sid      = "PassSageMakerExecRole"
