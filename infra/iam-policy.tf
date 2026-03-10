@@ -220,12 +220,33 @@ module "forecast_sagemaker_exec_custom_policy" {
         Sid    = "AllowECRReadForSageMakerImages"
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:DescribeRepositories",
-          "ecr:DescribeImages"
+          "ecr:SetRepositoryPolicy",
+          "ecr:CompleteLayerUpload",
+          "ecr:BatchDeleteImage",
+          "ecr:UploadLayerPart",
+          "ecr:DeleteRepositoryPolicy",
+          "ecr:InitiateLayerUpload",
+          "ecr:DeleteRepository",
+          "ecr:PutImage",
+          "ecr:GetAuthorizationToken",      
+          "ecr:BatchCheckLayerAvailability",  
+          "ecr:GetDownloadUrlForLayer",       
+          "ecr:BatchGetImage" 
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowVPCAccess"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface",
+          "ec2:CreateNetworkInterfacePermission",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeDhcpOptions",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups"
         ]
         Resource = "*"
       },
@@ -293,6 +314,7 @@ module "forecast_auto_deploy_lambda_policy" {
             "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:training-job/*",
             "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package-group/*",
             "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package/*",
+            "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model/*",
             "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:endpoint/*",
             "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:endpoint-config/*"
         ]

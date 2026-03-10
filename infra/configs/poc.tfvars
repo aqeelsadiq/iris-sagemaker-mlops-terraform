@@ -9,4 +9,4 @@ azs = [
 ]
 
 forecast_sagemaker_domain_auth_mode = "IAM"
-forecast_sagemaker_kernel_instance_type = "ml.t3.medium"
+forecast_sagemaker_kernel_instance_type = "ml.m5.large"
