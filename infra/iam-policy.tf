@@ -56,24 +56,6 @@ module "forecast_sagemaker_exec_custom_policy" {
       ]
     },
     {
-      "Sid": "AllowSageMakerListApis",
-      "Effect": "Allow",
-      "Action": [
-        "sagemaker:ListTrainingJobs",
-        "sagemaker:ListProcessingJobs",
-        "sagemaker:ListModels",
-        "sagemaker:ListModelPackages",
-        "sagemaker:ListModelPackageGroups",
-        "sagemaker:ListEndpoints",
-        "sagemaker:ListEndpointConfigs",
-        "sagemaker:ListPipelines",
-        "sagemaker:ListPipelineExecutions",
-        "sagemaker:ListPipelineExecutionSteps",
-        "sagemaker:Search"
-      ],
-      "Resource": "*"
-    },
-    {
       "Sid": "KMSForEncryptedArtifacts",
       "Effect": "Allow",
       "Action": [
