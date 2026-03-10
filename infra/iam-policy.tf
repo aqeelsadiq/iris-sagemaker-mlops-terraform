@@ -35,50 +35,9 @@ module "forecast_sagemaker_exec_custom_policy" {
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:domain/${aws_sagemaker_domain.forecast_sagemaker_domain.id}",
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:user-profile/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:app/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
-        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*"
-      ]
-    },
-    {
-      "Sid": "AllowProcessingJobsForPipeline",
-      "Effect":  "Allow",
-      "Action": [
-        "sagemaker:CreateProcessingJob",
-        "sagemaker:DescribeProcessingJob",
-        "sagemaker:StopProcessingJob",
-        "sagemaker:AddTags",
-        "sagemaker:ListTags"
-      ],
-      "Resource": [
-        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:processing-job/*"
-      ]
-    },
-    {
-      "Sid": "AllowTrainingJobsForPipeline",
-      "Effect": "Allow",
-      "Action": [
-        "sagemaker:CreateTrainingJob",
-        "sagemaker:DescribeTrainingJob",
-        "sagemaker:StopTrainingJob",
-        "sagemaker:AddTags",
-        "sagemaker:ListTags"
-      ],
-      "Resource": [
-        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:training-job/*"
-      ]
-    },
-    {
-      "Sid": "AllowModelPackageGroupActions",
-      "Effect": "Allow",
-      "Action": [
-        "sagemaker:AddTags",
-        "sagemaker:ListTags",
-        "sagemaker:CreateModelPackage",
-        "sagemaker:DescribeModelPackage",
-        "sagemaker:UpdateModelPackage",
-        "sagemaker:CreateModelPackageGroup",
-        "sagemaker:DescribeModelPackageGroup"
-      ],
-      "Resource": [
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:space/${aws_sagemaker_domain.forecast_sagemaker_domain.id}/*",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:processing-job/*",
+        "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:training-job/*",
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package-group/*",
         "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:model-package/*"
       ]
