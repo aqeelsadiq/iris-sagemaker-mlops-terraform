@@ -286,6 +286,78 @@ module "forecast_sagemaker_exec_custom_policy" {
         ]
         Resource = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/*"
       },
+      {
+            "Sid": "AllowS3ObjectActions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:AbortMultipartUpload"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*SageMaker*",
+                "arn:aws:s3:::*Sagemaker*",
+                "arn:aws:s3:::*sagemaker*",
+                "arn:aws:s3:::*aws-glue*"
+            ]
+        },
+        {
+            "Sid": "AllowS3GetObjectWithSageMakerExistingObjectTag",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*"
+            ],
+            "Condition": {
+                "StringEqualsIgnoreCase": {
+                    "s3:ExistingObjectTag/SageMaker": "true"
+                }
+            }
+        },
+        {
+            "Sid": "AllowS3GetObjectWithServiceCatalogProvisioningExistingObjectTag",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "s3:ExistingObjectTag/servicecatalog:provisioning": "true"
+                }
+            }
+        },
+        {
+            "Sid": "AllowS3BucketActions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket",
+                "s3:GetBucketLocation",
+                "s3:ListBucket",
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketCors",
+                "s3:PutBucketCors"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowS3BucketACL",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketAcl",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*SageMaker*",
+                "arn:aws:s3:::*Sagemaker*",
+                "arn:aws:s3:::*sagemaker*"
+            ]
+        }
     ]
   })
 
