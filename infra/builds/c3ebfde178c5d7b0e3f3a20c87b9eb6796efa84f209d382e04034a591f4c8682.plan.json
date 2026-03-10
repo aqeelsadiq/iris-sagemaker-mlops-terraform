@@ -1,0 +1,1 @@
+{"filename": "builds/c3ebfde178c5d7b0e3f3a20c87b9eb6796efa84f209d382e04034a591f4c8682.zip", "runtime": "python3.12", "artifacts_dir": "builds", "build_plan": [[["zip", "lambdas/forecast-autodeploy", null]]], "quiet": "true"}
