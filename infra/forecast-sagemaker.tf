@@ -8,8 +8,8 @@ resource "aws_sagemaker_domain" "forecast_sagemaker_domain" {
   app_network_access_type = "VpcOnly"
 
   default_user_settings {
-    execution_role  = module.forecast_sagemaker_exec_role.arn
-    security_groups = [module.forecast_sagemaker_domain_sg.security_group_id]
+    execution_role    = module.forecast_sagemaker_exec_role.arn
+    security_groups   = [module.forecast_sagemaker_domain_sg.security_group_id]
     studio_web_portal = "ENABLED"
 
     space_storage_settings {
@@ -19,7 +19,7 @@ resource "aws_sagemaker_domain" "forecast_sagemaker_domain" {
       }
     }
   }
-  
+
   default_space_settings {
     execution_role  = module.forecast_sagemaker_exec_role.arn
     security_groups = [module.forecast_sagemaker_domain_sg.security_group_id]
@@ -31,7 +31,7 @@ resource "aws_sagemaker_domain" "forecast_sagemaker_domain" {
     }
   }
   domain_settings {
-    security_group_ids = [ module.forecast_sagemaker_domain_sg.security_group_id ]
+    security_group_ids = [module.forecast_sagemaker_domain_sg.security_group_id]
   }
   tags = var.tags
 }
@@ -43,6 +43,9 @@ resource "aws_sagemaker_domain" "forecast_sagemaker_domain" {
 resource "aws_sagemaker_user_profile" "forecast_user_profile" {
   domain_id         = aws_sagemaker_domain.forecast_sagemaker_domain.id
   user_profile_name = "ForecastUserProfile"
+  user_settings {
+    execution_role = module.forecast_sagemaker_user_role.arn
+  }
 }
 
 #######################
