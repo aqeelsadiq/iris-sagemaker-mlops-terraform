@@ -92,7 +92,7 @@ module "forecast_sagemaker_exec_custom_policy" {
       "Resource": [
         "arn:aws:s3:::*SageMaker*/*",
         "arn:aws:s3:::*Sagemaker*/*",
-        "arn:aws:s3:::*sagemaker*/*",
+        "arn:aws:s3:::*sagemaker*/*"
       ]
     },
     {
