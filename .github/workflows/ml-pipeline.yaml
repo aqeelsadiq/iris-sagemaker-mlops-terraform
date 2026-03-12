@@ -3,7 +3,6 @@ name: Build SageMaker Pipeline and Deploy Staging
 on:
   push:
     branches: ["main"]
-#   workflow_dispatch:
 
 permissions:
   contents: read
