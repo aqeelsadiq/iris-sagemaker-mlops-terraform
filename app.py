@@ -64,7 +64,7 @@ with st.sidebar:
     default_region = os.environ.get("AWS_REGION") or os.environ.get("REGION") or "us-east-1"
     region = st.text_input("AWS Region", value=default_region)
 
-    default_endpoint = os.environ.get("SAGEMAKER_ENDPOINT_NAME", "iris-endpoint-staging")
+    default_endpoint = os.environ.get("SAGEMAKER_ENDPOINT_NAME", "poc-drc-forecast-endpoint")
     endpoint_name = st.text_input("Endpoint name", value=default_endpoint)
 
     st.caption(

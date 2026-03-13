@@ -60,7 +60,7 @@ module "forecast-zone" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "~> 5.10.0"
 
-  bucket        = lower(replace(local.placeholder, "%name%", "forecast-zone"))
+  bucket        = lower(replace(local.placeholder, "%name%", "forecast-zone11"))
   force_destroy = true
 
   block_public_acls       = true
