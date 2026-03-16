@@ -166,3 +166,44 @@ module "forecast_auto_deploy_lambda_policy" {
 
   tags = var.tags
 }
+
+
+
+module "forecast_sagemaker_user_s3_policy" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-policy"
+  version = "6.4.0"
+
+  name        = lower(replace(local.placeholder, "%name%", "forecast-sagemaker-user-s3-policy"))
+  path        = "/"
+  description = "Allow SageMaker user role to read model artifacts from raw zone bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowListBucket"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          module.raw-zone.s3_bucket_arn
+        ]
+      },
+      {
+        Sid    = "AllowModelArtifactRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${module.raw-zone.s3_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+
+  tags = var.tags
+}

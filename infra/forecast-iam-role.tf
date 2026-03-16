@@ -79,7 +79,9 @@ module "forecast_sagemaker_user_role" {
     AmazonSageMakerCanvasAIServicesAccess             = "arn:aws:iam::aws:policy/AmazonSageMakerCanvasAIServicesAccess",
     AmazonSageMakerCanvasDataPrepFullAccess           = "arn:aws:iam::aws:policy/AmazonSageMakerCanvasDataPrepFullAccess",
     AmazonSageMakerCanvasFullAccess                   = "arn:aws:iam::aws:policy/AmazonSageMakerCanvasFullAccess",
-    AmazonSageMakerCanvasSMDataScienceAssistantAccess = "arn:aws:iam::aws:policy/AmazonSageMakerCanvasSMDataScienceAssistantAccess"
+    AmazonSageMakerCanvasSMDataScienceAssistantAccess = "arn:aws:iam::aws:policy/AmazonSageMakerCanvasSMDataScienceAssistantAccess",
+    customS3ReadAccess                                = module.forecast_sagemaker_user_s3_policy.arn
+
   }
 
   tags = var.tags
