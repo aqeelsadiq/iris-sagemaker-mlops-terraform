@@ -142,6 +142,10 @@ def main():
         framework_version="1.2-1",
         py_version="py3",
         sagemaker_session=pipeline_sess,
+        metric_definitions=[
+        {"Name": "train:accuracy", "Regex": r"accuracy:\s*([0-9\.]+)"},
+        {"Name": "train:f1_macro", "Regex": r"f1_macro:\s*([0-9\.]+)"}
+    ],
     )
 
     step_train = TrainingStep(

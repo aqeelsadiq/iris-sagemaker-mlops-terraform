@@ -36,3 +36,13 @@ variable "forecast_sagemaker_kernel_instance_type" {
   type        = string
   default     = "ml.t3.medium"
 }
+
+variable "pipeline_name" {
+  description = "Exact SageMaker pipeline name to monitor"
+  type        = string
+}
+
+variable "staging_endpoint_name" {
+  description = "Exact staging endpoint name to monitor"
+  type        = string
+}
