@@ -271,86 +271,6 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
     periodOverride = "inherit"
 
     widgets = [
-      #   # ============================================================
-      #   # OVERVIEW
-      #   # ============================================================
-      #   {
-      #     type   = "text"
-      #     x      = 0
-      #     y      = 2
-      #     width  = 24
-      #     height = 1
-      #     properties = {
-      #       markdown = "## Overview"
-      #     }
-      #   },
-      #   {
-      #     type   = "metric"
-      #     x      = 0
-      #     y      = 3
-      #     width  = 6
-      #     height = 4
-      #     properties = {
-      #       title  = "Pipeline Duration"
-      #       view   = "singleValue"
-      #       region = var.region
-      #       period = 60
-      #       metrics = [
-      #         ["AWS/Sagemaker/ModelBuildingPipeline", "ExecutionDuration", "PipelineName", var.pipeline_name, { "id" : "m1", "visible" : false }],
-      #         [{ "expression" : "m1/60000", "label" : "Duration", "id" : "e1" }]
-      #       ]
-      #     }
-      #   },
-      #   {
-      #     type   = "metric"
-      #     x      = 6
-      #     y      = 3
-      #     width  = 6
-      #     height = 4
-      #     properties = {
-      #       title  = "Training Accuracy"
-      #       view   = "singleValue"
-      #       region = var.region
-      #       period = 60
-      #       metrics = [
-      #         [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,TrainingJobName} MetricName=\"train:accuracy\" \"IrisTraining\"', 'Average', 60)", "id" : "e1", "label" : "Accuracy" }]
-      #       ]
-      #     }
-      #   },
-      #   {
-      #     type   = "metric"
-      #     x      = 12
-      #     y      = 3
-      #     width  = 6
-      #     height = 4
-      #     properties = {
-      #       title  = "Staging Latency"
-      #       view   = "singleValue"
-      #       region = var.region
-      #       period = 60
-      #       metrics = [
-      #         ["AWS/SageMaker", "ModelLatency", "EndpointName", lower(replace(local.placeholder, "%name%", "forecast-endpoint")), "VariantName", "AllTraffic", { "stat" : "Average", "label" : "Latency" }]
-      #       ]
-      #     }
-      #   },
-      #   {
-      #     type   = "metric"
-      #     x      = 18
-      #     y      = 3
-      #     width  = 6
-      #     height = 4
-      #     properties = {
-      #       title  = "Lambda Duration"
-      #       view   = "singleValue"
-      #       region = var.region
-      #       period = 60
-      #       metrics = [
-      #         ["AWS/Lambda", "Duration", "FunctionName", module.forecast_auto_deploy_lambda.lambda_function_name, { "stat" : "Average", "id" : "m1", "visible" : false }],
-      #         [{ "expression" : "m1/60000", "label" : "Duration", "id" : "e1" }]
-      #       ]
-      #     }
-      #   },
-
       # ============================================================
       # OverView
       # ============================================================
@@ -371,7 +291,7 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
         width  = 6
         height = 6
         properties = {
-          title  = "Pipeline Duration"
+          title  = "Pipeline ExecutionDuration"
           view   = "gauge"
           region = var.region
           period = 60
@@ -592,76 +512,6 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
       },
       {
         type   = "metric"
-        x      = 0
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title   = "Pipeline Job Resource Utilization"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          view    = "timeSeries"
-          stacked = false
-          metrics = [
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"CPUUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p1", "label" : "Preprocess CPU %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"MemoryUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p2", "label" : "Preprocess Memory %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"DiskUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p3", "label" : "Preprocess Disk %" }],
-
-            [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,Host} MetricName=\"CPUUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t1", "label" : "Training CPU %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,Host} MetricName=\"MemoryUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t2", "label" : "Training Memory %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,Host} MetricName=\"DiskUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t3", "label" : "Training Disk %" }],
-
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"CPUUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "e1", "label" : "Evaluation CPU %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"MemoryUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "e2", "label" : "Evaluation Memory %" }],
-            [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,Host} MetricName=\"DiskUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "e3", "label" : "Evaluation Disk %" }]
-          ]
-          yAxis = {
-            left = {
-              min = 0
-              max = 100
-            }
-          }
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 22
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Pipeline Job Resource Utilization 2"
-          region  = var.region
-          view    = "timeSeries"
-          period  = 60
-          stat    = "Average"
-          stacked = false
-
-          metrics = [
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"CPUUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "cpu_train", "label" : "Training CPU %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"MemoryUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "mem_train", "label" : "Training Memory %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"DiskUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "disk_train", "label" : "Training Disk %" }],
-
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"CPUUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "cpu_proc", "label" : "Preprocess CPU %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"MemoryUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "mem_proc", "label" : "Preprocess Memory %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"DiskUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "disk_proc", "label" : "Preprocess Disk %" }],
-
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"CPUUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "cpu_eval", "label" : "Evaluation CPU %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"MemoryUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "mem_eval", "label" : "Evaluation Memory %" }],
-            [{ "expression" : "SEARCH('{AWS/SageMaker,Host} MetricName=\"DiskUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "disk_eval", "label" : "Evaluation Disk %" }]
-          ]
-
-          yAxis = {
-            left = {
-              min = 0
-              max = 100
-            }
-          }
-        }
-      },
-      {
-        type   = "metric"
         x      = 8
         y      = 22
         width  = 8
@@ -733,25 +583,6 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
           ]
         }
       },
-      #   {
-      #     type   = "metric"
-      #     x      = 16
-      #     y      = 29
-      #     width  = 8
-      #     height = 6
-      #     properties = {
-      #       title   = "Traffic Comparison"
-      #       region  = var.region
-      #       period  = 60
-      #       view    = "bar"
-      #       stacked = false
-      #       stat    = "Sum"
-      #       metrics = [
-      #         ["AWS/SageMaker", "Invocations", "EndpointName", lower(replace(local.placeholder, "%name%", "forecast-endpoint")), "VariantName", "AllTraffic", { "label" : "Staging" }],
-      #         ["AWS/SageMaker", "Invocations", "EndpointName", lower(replace(local.placeholder, "%name%", "forecast-prod-endpoint")), "VariantName", "AllTraffic", { "label" : "Production" }]
-      #       ]
-      #     }
-      #   },
 
       # ============================================================
       # AUTOMATION & EVENTS
@@ -785,24 +616,6 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
           ]
         }
       },
-      #   {
-      #     type   = "metric"
-      #     x      = 8
-      #     y      = 36
-      #     width  = 8
-      #     height = 6
-      #     properties = {
-      #       title   = "Lambda Duration"
-      #       region  = var.region
-      #       period  = 60
-      #       view    = "timeSeries"
-      #       stacked = false
-      #       metrics = [
-      #         ["AWS/Lambda", "Duration", "FunctionName", module.forecast_auto_deploy_lambda.lambda_function_name, { "stat" : "Average", "id" : "m1", "visible" : false }],
-      #         [{ "expression" : "m1/60000", "label" : "Duration", "id" : "e1" }]
-      #       ]
-      #     }
-      #   },
       {
         type   = "metric"
         x      = 8
