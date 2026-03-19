@@ -42,7 +42,7 @@ variable "pipeline_name" {
   type        = string
 }
 
-variable "staging_endpoint_name" {
-  description = "Exact staging endpoint name to monitor"
-  type        = string
-}
+# variable "staging_endpoint_name" {
+#   description = "Exact staging endpoint name to monitor"
+#   type        = string
+# }

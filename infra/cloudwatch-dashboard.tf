@@ -5,9 +5,9 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
     periodOverride = "inherit"
 
     widgets = [
-      # ============================================================
+      # =====================
       # OverView
-      # ============================================================
+      # =====================
       {
         type   = "text"
         x      = 0
@@ -109,9 +109,9 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
         }
       },
 
-      # ============================================================
+      # =====================
       # PIPELINE ACTIVITY
-      # ============================================================
+      # =====================
       {
         type   = "text"
         x      = 0
@@ -202,71 +202,9 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
           ]
         }
       },
-
-      # # ============================================================
-      # # MODEL TRAINING
-      # # ============================================================
-      # {
-      #   type   = "text"
-      #   x      = 0
-      #   y      = 21
-      #   width  = 24
-      #   height = 1
-      #   properties = {
-      #     markdown = "## Model Training"
-      #   }
-      # },
-      # {
-      #   type   = "metric"
-      #   x      = 0
-      #   y      = 22
-      #   width  = 8
-      #   height = 6
-      #   properties = {
-      #     title   = "Pipeline Job(Preprocessing, Evaluation, Training) Resource Utilization"
-      #     region  = var.region
-      #     stat    = "Average"
-      #     period  = 60
-      #     view    = "timeSeries"
-      #     stacked = false
-      #     metrics = [
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"CPUUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p1", "label" : "Preprocess CPU %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"MemoryUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p2", "label" : "Preprocess Memory %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"DiskUtilization\" \"IrisPreprocessing\"', 'Average', 60)", "id" : "p3", "label" : "Preprocess Disk %" }],
-
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,TrainingJobName} MetricName=\"CPUUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t1", "label" : "Training CPU %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,TrainingJobName} MetricName=\"MemoryUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t2", "label" : "Training Memory %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/TrainingJobs,TrainingJobName} MetricName=\"DiskUtilization\" \"IrisTraining\"', 'Average', 60)", "id" : "t3", "label" : "Training Disk %" }],
-
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"CPUUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "v1", "label" : "Evaluation CPU %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"MemoryUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "v2", "label" : "Evaluation Memory %" }],
-      #       [{ "expression" : "SEARCH('{/aws/sagemaker/ProcessingJobs,ProcessingJobName} MetricName=\"DiskUtilization\" \"IrisEvaluation\"', 'Average', 60)", "id" : "v3", "label" : "Evaluation Disk %" }]
-      #     ]
-      #   }
-      # },
-      # {
-      #   type   = "metric"
-      #   x      = 8
-      #   y      = 22
-      #   width  = 8
-      #   height = 6
-      #   properties = {
-      #     title   = "Training Logs"
-      #     region  = var.region
-      #     stat    = "Sum"
-      #     period  = 60
-      #     view    = "timeSeries"
-      #     stacked = false
-      #     metrics = [
-      #       ["AWS/Logs", "IncomingLogEvents", "LogGroupName", "/aws/sagemaker/TrainingJobs", { "label" : "IncomingLogEvents" }],
-      #       [".", "IncomingBytes", ".", ".", { "label" : "IncomingBytes" }]
-      #     ]
-      #   }
-      # },
-
-      # ============================================================
+      # =====================
       # ENDPOINTS
-      # ============================================================
+      # =====================
       {
         type   = "text"
         x      = 0
@@ -318,9 +256,9 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
         }
       },
 
-      # ============================================================
+      # =====================
       # AUTOMATION & EVENTS
-      # ============================================================
+      # =====================
       {
         type   = "text"
         x      = 0
@@ -338,7 +276,7 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
         width  = 8
         height = 6
         properties = {
-          title   = "Forecast Lambda Activity"
+          title   = "Forecast auto deploy Lambda Activity"
           region  = var.region
           period  = 60
           view    = "timeSeries"
@@ -370,6 +308,46 @@ resource "aws_cloudwatch_dashboard" "forecast_mlops" {
             [".", "SuccessfulInvocationAttempts", ".", ".", { "label" : "Successful" }],
             [".", "FailedInvocations", ".", ".", { "label" : "Failed" }]
           ]
+        }
+      },
+
+      # =====================
+      # LAMBDA LOGS
+      # =====================
+      {
+        type   = "text"
+        x      = 0
+        y      = 42
+        width  = 24
+        height = 2
+        properties = {
+          markdown = "## Lambda Logs & Debugging\n[button:Open Lambda Function](https://${var.region}.console.aws.amazon.com/lambda/home?region=${var.region}#/functions/${module.forecast_auto_deploy_lambda.lambda_function_name})  [button:Open Log Group](https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#logsV2:log-groups/log-group/$252Faws$252Flambda$252F${module.forecast_auto_deploy_lambda.lambda_function_name})"
+        }
+      },
+      {
+        type   = "log"
+        x      = 0
+        y      = 43
+        width  = 12
+        height = 6
+        properties = {
+          region = var.region
+          title  = "Forecast auto deploy Lambda Logs"
+          view   = "table"
+          query  = "SOURCE '/aws/lambda/${module.forecast_auto_deploy_lambda.lambda_function_name}' | fields @timestamp, @message, @logStream\n| sort @timestamp desc\n| limit 10"
+        }
+      },
+      {
+        type   = "log"
+        x      = 12
+        y      = 43
+        width  = 12
+        height = 6
+        properties = {
+          region = var.region
+          title  = "Forecast auto deploy Lambda Error Logs"
+          view   = "table"
+          query  = "SOURCE '/aws/lambda/${module.forecast_auto_deploy_lambda.lambda_function_name}' | fields @timestamp, @message, @logStream\n| filter @message like /ERROR|Error|Exception|Task timed out/\n| sort @timestamp desc\n| limit 10"
         }
       }
     ]

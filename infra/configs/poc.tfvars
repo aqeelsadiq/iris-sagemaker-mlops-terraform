@@ -11,5 +11,5 @@ azs = [
 forecast_sagemaker_domain_auth_mode = "IAM"
 forecast_sagemaker_kernel_instance_type = "ml.m5.large"
 
-pipeline_name         = "poc-a-drc-forecast-pipeline"
-staging_endpoint_name = "poc-a-drc-forecast-endpoint"
+pipeline_name         = "quickbook-drc-forecast-pipeline"
+# staging_endpoint_name = "poc-a-drc-forecast-endpoint"
